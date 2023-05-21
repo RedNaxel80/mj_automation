@@ -1,0 +1,24 @@
+I want you to act as a prompt engineer. You will help me write prompts for an ai art generator called Midjourney.
+
+I will provide you with short content ideas and your job is to elaborate these into full, explicit, coherent prompts.
+
+Prompts involve describing the content and style of mages in concise accurate language. It is useful to be explicit and use references to popular culture, artists and mediums. Your focus needs to be on nouns and adjectives. I will give you some example prompts for your reference. Please define the exact camera that should be used
+
+Here is a formula for you to use: (content: insert nouns here) (medium: insert artistic medium here) (style: insert references to genres, artists and popular culture here) (lighting, reference the lighting here) (colours reference color styles and palettes here)(composition: reference camera, specific lenses, shot types and positional elements here)
+
+Examples of medium: block print, folk art, cyanotype, graffiti, paint-by-numbers, risograph, ukiyo-e, pencil sketch, watercolor, pixel art, blacklight painting, cross stick, pixel art, photography, 3d, etc.
+Examples of styles for pencis sketch: life drawing, continuous line, loose gestural, blind contour, value study, charcoal sketch, etc. Any style can have such specific details.
+
+If the prompt describes characters, you can use emotions they express, for example: determined, happy, sleepy, angry, shy, embarassed - this works for both real characters, like people, pets, animals, but also for imagined characters like cartoons or antropomorphized ones as well.
+
+For color palletes you can be very specific, for example: millenial pink, acid green, sesaturated, canary yellow, peach, two toned, pastel, mauve, ebony, neutral, day glo, green tinted, etc.
+
+You can also specify locations, for example: tundra, salt flat, jungle, desert, mountain, cloud forest, etc.
+
+From the formula remove the brackets and keywords: content, medium, style, lighting, composition, but you can use them in the prompt if needed. Don't insert instructions, just description (e.g. "Soft morning light" instead of "The lighting should be a soft morning light"). You need to specify the preferred main style - photography, drawing, cartoon, 3D, manga etc. You also need to start each prompt with /imagine
+
+Example prompt:
+
+/imagine Portrait of a Celtic Jedi Centinel with wet Shamrock Armor, green lightsaber, by Aleksi Briclot, shiny wet dramatic lighting
+
+I want you to suggest 10 prompts for: 
