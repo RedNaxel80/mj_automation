@@ -14,8 +14,8 @@ mj_bot = MjAutomator()
 thread = threading.Thread(target=start_bot, args=(mj_bot,))
 thread.start()
 
-time.sleep(5)
+time.sleep(10)
 
 loop = mj_bot.client.loop
-future = asyncio.run_coroutine_threadsafe(mj_bot.prompter.send_prompt("laboratory"), loop)
-# future = asyncio.run_coroutine_threadsafe(mj_bot.prompter.start_prompting(), loop)
+# future = asyncio.run_coroutine_threadsafe(mj_bot.prompter.send_prompt("laboratory"), loop)
+future = asyncio.run_coroutine_threadsafe(mj_bot.prompter.start_prompting(), loop)
