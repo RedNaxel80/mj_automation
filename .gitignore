@@ -160,5 +160,7 @@ cython_debug/
 #.idea/
 
 config.py
-prompts.txt
-prompts_completed.txt
+mj_prompts.txt
+mj_prompts_completed.txt
+todo
+todo.py
