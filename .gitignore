@@ -162,5 +162,7 @@ cython_debug/
 config.py
 mj_prompts.txt
 mj_prompts_completed.txt
+mj_messages.txt
+mj_logs.txt
 todo
 todo.py

@@ -7,6 +7,7 @@ import requests
 from PIL import Image
 import config
 import mj_commands
+from datetime import datetime
 
 # load_dotenv()
 
@@ -20,6 +21,7 @@ class MjAutomator:
         self.prompt_file = open(config.PROMPT_FILE, 'r')
         self.done_prompt_file = open(config.DONE_PROMPT_FILE, 'a')
         self.auto_run = auto_run
+        self.log_started = False
 
         self.intents = discord.Intents.all()
         self.intents.message_content = True
@@ -42,6 +44,10 @@ class MjAutomator:
     def discord_setup(self):
         @self.client.event
         async def on_ready():
+            # flush the log file if it's not persistent
+            if config.LOG_ENABLED and not config.LOG_PERSISTENT:
+                os.remove(config.LOG_FILE)
+
             # Get a reference to the guild (server) and channel
             self.guild = self.client.get_guild(config.SERVER_ID)
             self.channel = self.guild.get_channel(config.CHANNEL_ID)
@@ -56,6 +62,12 @@ class MjAutomator:
 
         @self.client.event
         async def on_message(message):
+            # get all messsages from the channel and log them
+            if config.LOG_ENABLED:
+                with open(config.LOG_FILE, 'a') as log_file:
+                    log_file.write(f"{datetime.now()}: {message.author.id} {message.content}\n")
+
+            # if the message is not from midjourney itself, ignore it
             if message.author.id != config.MIDJOURNEY_ID or message.content == "" or not message.attachments:
                 return
 
