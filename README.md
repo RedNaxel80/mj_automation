@@ -1,2 +1,2 @@
 # mj_automation
-Midjourney automation bot
+mj automation bot
