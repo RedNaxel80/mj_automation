@@ -1,7 +1,8 @@
 import openai
 from enum import Enum
+import config
 
-API_KEY = "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"
+API_KEY = config.GPT_API_KEY
 
 
 class Model(Enum):
