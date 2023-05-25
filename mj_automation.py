@@ -30,7 +30,7 @@ class MjAutomator:
         self.channel = None
         self.downloader = self.Downloader(self) if config.ENABLE_DOWNLOAD else None  # the downloader class
         self.prompter = self.Prompter(self) if config.ENABLE_PROMPTING else None  # the prompter class
-        self.mj_imagine, self.mj_upscale = self.discord_setup()  # bringing the inner methods to the main class
+        self.mj_imagine, self.mj_upscale, self.mj_upscale_max = self.discord_setup()  # bringing the inner methods to the main class
 
         if self.auto_run:
             self.start_bot()
@@ -38,7 +38,7 @@ class MjAutomator:
     def start_bot(self, token=config.BOT_TOKEN):
         self.client.run(token)
 
-    def quit_bot(self):
+    async def quit_bot(self):
         asyncio.run(self.client.close())
 
     def discord_setup(self):
@@ -72,9 +72,9 @@ class MjAutomator:
                 return
 
             if self.downloader:
-                await self.downloader.download_if_needed(message)
+                await self.downloader.download_process(message)
             if self.prompter:
-                await self.prompter.perform_upscale_if_needed(message)
+                await self.prompter.upscale_process(message)
 
         @self.client.command()
         async def mj_imagine(ctx, *, prompt: str):
@@ -83,34 +83,49 @@ class MjAutomator:
             if response.status_code >= 400:
                 print(response.text)
                 print(response.status_code)
-                await ctx.channel.send("Request has failed; please try later")
-            # else:
-            # await ctx.channel.send("Your image is being prepared, please wait a moment...")
+                await ctx.channel.send("Imagine: Request has failed; please try later")
 
         @self.client.command()
         async def mj_upscale(ctx, index: int, message_id: str, message_hash: str):
             if message_id == "":
-                await ctx.send('Could not find the correct message to reply to')
+                await ctx.send('Upscale: Could not find the correct message to reply to')
                 return
 
             response = mj_commands.upscale(index, message_id, message_hash)
 
             if response.status_code >= 400:
-                await ctx.send("Request has failed; please try later")
+                await ctx.send("Upscale: Request has failed; please try later")
                 return
 
-            # await ctx.send("Your image is being prepared, please wait a moment...")
+        @self.client.command()
+        async def mj_upscale_max(ctx, message_id: str, message_hash: str):
+            if message_id == "":
+                await ctx.send('UpscaleMax: Could not find the correct message to reply to')
+                return
 
-        return mj_imagine, mj_upscale
+            response = mj_commands.upscale_max(message_id, message_hash)
+
+            if response.status_code >= 400:
+                await ctx.send("UpscaleMax: Request has failed; please try later")
+                return
+
+        return mj_imagine, mj_upscale, mj_upscale_max  # return the inner methods so they can be accessed externally
 
     class Downloader:
         def __init__(self, main):
             self.main = main
             self.client = self.main.client
 
-        async def download_if_needed(self, message):
-            file_prefix = config.UPSCALE_PREFIX if config.UPSCALE_TAG in message.content.lower() else ''
-            if (file_prefix and config.DOWNLOAD_UPSCALE) or (not file_prefix and config.DOWNLOAD_ORIGINAL):
+        async def download_process(self, message):
+            # different mj versions have different message formats, so we need to check for a list here
+            file_prefix = config.UPSCALE_PREFIX if any(s in message.content.lower() for s in config.UPSCALE_TAGS) else ''
+            # new condition for upscale max
+            file_prefix = config.UPSCALE_MAX_PREFIX if config.UPSCALE_MAX_TAG in message.content.lower() else file_prefix
+
+            # we need to check which situation we're in - original image, upscale, or upscale max
+            if (file_prefix == config.UPSCALE_PREFIX and config.DOWNLOAD_UPSCALE) or \
+                    (file_prefix == config.UPSCALE_MAX_PREFIX and config.DOWNLOAD_UPSCALE_MAX) or \
+                    (not file_prefix and config.DOWNLOAD_ORIGINAL):
                 for attachment in message.attachments:
                     if attachment.filename.lower().endswith(config.ALLOWED_EXTENSIONS):
                         await self.download_image(attachment.url, f"{file_prefix}{attachment.filename}")
@@ -196,6 +211,10 @@ class MjAutomator:
                 await asyncio.sleep(120)  # give time to finish downloading jobs
                 await self.client.close()
                 print('Bot closed.')
+            else:
+                # enter infinite loop to keep the thread running
+                while True:
+                    await asyncio.sleep(60)
 
         async def send_prompt(self, prompt):
             # Check if there are any messages in the channel
@@ -218,18 +237,37 @@ class MjAutomator:
             else:
                 print("There are no messages in the channel.")
 
-        async def perform_upscale_if_needed(self, message):
-            if message.reference or not config.AUTO_UPSCALE:  # if the message is a reply or auto upscale is disabled
+        async def upscale_process(self, message):
+            # if message.reference or not config.ENABLE_UPSCALE:  # if the message is a reply or auto upscale is disabled
+            #     return
+            if message.author.id != config.MIDJOURNEY_ID:
+                return
+
+            if not config.ENABLE_UPSCALE and not config.ENABLE_UPSCALE_MAX:
                 return
 
             try:
                 message_hash = str((message.attachments[0].url.split("_")[-1]).split(".")[0])
                 message_id = str(message.id)
                 ctx = await self.client.get_context(message)
-                for i in range(1, 5):
-                    await self.main.mj_upscale(ctx, i, message_id, message_hash)
-                    await asyncio.sleep(5)
+
+                lowered_message_content = message.content.lower()
+                # choose upscaler based on message contents, but ignore already max_upscaled images
+                if any(s in lowered_message_content for s in config.UPSCALE_TAGS) and \
+                        config.UPSCALE_MAX_TAG not in lowered_message_content and config.ENABLE_UPSCALE_MAX:
+                    await self.max_upscale(ctx, message_id, message_hash)
+                else:
+                    # if it's already a max upscaled image, don't upscale it again as it causes errors
+                    if config.UPSCALE_MAX_TAG not in lowered_message_content:
+                        await self.default_upscale(ctx, message_id, message_hash)
+
             except Exception as e:
                 print(f"An error occurred: {e}")
 
+        async def default_upscale(self, ctx, message_id, message_hash):
+            for i in range(1, 2):
+                await self.main.mj_upscale(ctx, i, message_id, message_hash)
+                await asyncio.sleep(5)
 
+        async def max_upscale(self, ctx, message_id, message_hash):
+            await self.main.mj_upscale_max(ctx, message_id, message_hash)
