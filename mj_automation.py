@@ -9,6 +9,7 @@ from PIL import Image
 import config
 import mj_commands
 from datetime import datetime
+import queue
 
 # load_dotenv()
 
@@ -23,7 +24,7 @@ class MjAutomator:
         self.done_prompt_file = open(config.DONE_PROMPT_FILE, 'a')
         self.auto_run = auto_run
         self.log_started = False
-        self.message_counter = 0
+        self.message_counter = -1  # it will get to zero with bot start message
         self.job_counter = 0
 
         self.intents = discord.Intents.all()
@@ -57,7 +58,11 @@ class MjAutomator:
             self.channel = self.guild.get_channel(config.CHANNEL_ID)
 
             print(f"Logged in as {self.client.user}")
+            print("--run settings--")
             print(f"Downloader: {'enabled' if self.downloader else 'disabled'}, prompter: {'enabled' if self.prompter else 'disabled'}")
+            print(f"Upscale: {config.ENABLE_UPSCALE}, upscale_max: {config.ENABLE_UPSCALE_MAX}")
+            print(f"Download original{config.DOWNLOAD_ORIGINAL}, download upscale: {config.DOWNLOAD_UPSCALE}, download upscaled_max: {config.DOWNLOAD_UPSCALE_MAX}")
+            print("---------------")
 
             asyncio.create_task(self.job_manager.process_jobs())
             await self.channel.send("Bot ready!")
@@ -66,6 +71,7 @@ class MjAutomator:
 
         @self.client.event
         async def on_message(message):
+            self.message_counter += 1
             # get all messsages from the channel and log them
             if config.LOG_ENABLED:
                 with open(config.LOG_FILE, 'a') as log_file:
@@ -195,8 +201,6 @@ class MjAutomator:
             self.client = self.main.client
 
         async def start_prompting(self):
-            await self.main.channel.send('Starting prompting...')
-
             prompts = self.main.prompt_file.readlines()
 
             for prompt in prompts:
@@ -206,6 +210,9 @@ class MjAutomator:
             print('Prompt batch import finished. Created jobs:', await self.main.job_manager.get_job_count())
 
         async def send_prompt(self, prompt):
+            if self.main.channel.last_message_id is None:
+                await self.main.channel.send("Context message for the bot's prompts - do not delete")
+
             # Check if there are any messages in the channel
             if self.main.channel.last_message_id is not None:
                 # Try to fetch the last message
@@ -269,36 +276,29 @@ class MjAutomator:
         def __init__(self, main):
             self.main = main
             self.client = self.main.client
-            self.jobs = []
+            self.queue = asyncio.Queue()
 
         async def add_job(self, job):
-            self.jobs.append(job)
-
-        async def remove_job(self):
-            self.jobs.pop(0)
-
-        def get_next_job(self):
-            return self.jobs[0] if self.jobs else None
+            await self.queue.put(job)
 
         async def get_job_count(self):
-            return len(self.jobs)
+            return self.queue.qsize()
 
         async def do_job(self, job):
             job_function, *args, kwargs = job
             await job_function(*args, kwargs)
-            await self.remove_job()
 
         async def process_jobs(self):
             print("Starting job processing...")
 
             while True:
-                job = self.get_next_job()
+                job = await self.queue.get()
                 if job is not None:
                     try:
-                        await self.do_job(job)
+                        await self.do_job(await self.queue.get())
                     except DiscordServerError as e:
                         print(f"DiscordServerError: {e}")
                         await asyncio.sleep(60)
 
-                await asyncio.sleep(30)  # sleep for 30 seconds between jobs
+                await asyncio.sleep(30)  # sleep for 30 seconds between jobs (or waiting for next ones)
 
