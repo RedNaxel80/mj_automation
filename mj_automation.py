@@ -9,7 +9,6 @@ from PIL import Image
 import config
 import mj_commands
 from datetime import datetime
-import queue
 
 # load_dotenv()
 
@@ -201,21 +200,35 @@ class MjAutomator:
             if not config.ENABLE_PROMPTING:
                 return
 
-            await self.get_prompts_from_file()
+            # Get the prompts from the file
+            prompts = await self.get_prompts_from_file()
+
+            # add all non-empty prompts to queue
+            for prompt in prompts:
+                prompt = prompt.strip()
+                if prompt != "":
+                    await self.main.job_manager.add_job((self.main.prompter.send_prompt, prompt))
 
         async def get_prompts_from_file(self):
+            prompts = []
             try:
-                prompt_file = open(config.PROMPT_FILE, 'r')
-                done_prompt_file = open(config.DONE_PROMPT_FILE, 'a')
-                prompts = prompt_file.readlines()
+                with open(config.PROMPT_FILE, 'r') as prompt_file:
+                    prompts = prompt_file.readlines()
 
-                for prompt in prompts:
-                    prompt = prompt.strip()
-                    if prompt != "":
-                        await self.main.job_manager.add_job((self.main.prompter.send_prompt, prompt))
-                print('Prompt batch import finished. Created jobs:', await self.main.job_manager.get_job_count())
+                # skip if no prompts in file
+                if len(prompts) != 0:
+                    # Remove the prompts from the file
+                    open(config.PROMPT_FILE, 'w').close()
+                    # Copy the prompts to the done file (append)
+                    with open(config.DONE_PROMPT_FILE, 'a') as done_prompt_file:
+                        done_prompt_file.write(''.join(prompts))
+                print(f'Prompt batch import finished: {len(prompts)} prompts queued.')
+
             except FileNotFoundError:
                 print("Error on reading the prompt file.")
+
+            finally:
+                return prompts
 
         async def get_prompt(self):
             pass
@@ -269,27 +282,31 @@ class MjAutomator:
                 ctx = await self.client.get_context(message)
 
                 lowered_message_content = message.content.lower()
-                # choose upscaler based on message contents, but ignore already max_upscaled images
-                if any(s in lowered_message_content for s in config.UPSCALE_TAGS) and \
-                        config.UPSCALE_MAX_TAG not in lowered_message_content and config.ENABLE_UPSCALE_MAX:
-                    # adding to job queue
-                    await self.main.job_manager.add_job((self.main.upscaler.max_upscale, ctx, message_id, message_hash))
+
+                # skip already max upscaled images
+                if config.UPSCALE_MAX_TAG in lowered_message_content:
+                    return
+
+                # if already upscaled one
+                if any(s in lowered_message_content for s in config.UPSCALE_TAGS):
+                    # allow for max upscale if it's enabled in config (only works for v4)
+                    if config.ENABLE_UPSCALE_MAX:
+                        await self.main.upscaler.max_upscale(ctx, message_id, message_hash)
                 else:
-                    # if it's already a max upscaled image, don't upscale it again as it causes errors
-                    if config.UPSCALE_MAX_TAG not in lowered_message_content:
-                        # adding to job queue
-                        await self.main.job_manager.add_job((self.main.upscaler.default_upscale, ctx, message_id, message_hash))
+                    # if not already upscaled, upscale default
+                    await self.main.upscaler.default_upscale(ctx, message_id, message_hash, lowered_message_content)
 
             except Exception as e:
                 print(f"An error occurred: {e}")
 
-        async def default_upscale(self, ctx, message_id, message_hash):
+        async def default_upscale(self, ctx, message_id, message_hash, lowered_message_content):
             for i in range(1, 5):
-                await self.main.mj_upscale(ctx, i, message_id, message_hash)
-                await asyncio.sleep(5)
+                # add to job queue
+                await self.main.job_manager.add_job((self.main.mj_upscale, ctx, i, message_id, message_hash))
 
         async def max_upscale(self, ctx, message_id, message_hash):
-            await self.main.mj_upscale_max(ctx, message_id, message_hash)
+            # add to job queue
+            await self.main.job_manager.add_job((self.main.mj_upscale_max, ctx, message_id, message_hash))
 
     class JobManager:
         def __init__(self, main):
@@ -310,20 +327,21 @@ class MjAutomator:
 
         async def process_jobs(self):
             print("Starting job processing...")
-            await asyncio.sleep(10)
+            await asyncio.sleep(5)
 
             while True:
+                print(f"\rJobs in queue: {await self.get_job_count()}", end="")
                 job = await self.queue.get()
                 if job is not None:
                     try:
-                        print(f"Processing job #{self.job_number}, jobs left in queue: {await self.get_job_count()}: {job}")
+                        await self.main.logger.log(f"Processing job #{self.job_number}, jobs left in queue: {await self.get_job_count()}: {job}")
                         self.job_number += 1
                         await self.do_job(job)
                     except DiscordServerError as e:
                         print(f"DiscordServerError: {e}")
                         await asyncio.sleep(60)
 
-                await asyncio.sleep(30)  # sleep for 30 seconds between jobs (or waiting for next ones)
+                await asyncio.sleep(10)  # sleep for 30 seconds between jobs (or waiting for next ones)
 
     class Logger:
         def __init__(self, main):
