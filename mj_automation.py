@@ -9,6 +9,7 @@ from PIL import Image
 import config
 import mj_commands
 from datetime import datetime
+import re
 
 # load_dotenv()
 
@@ -18,8 +19,6 @@ class MjAutomator:
         self.prompt_counter = 0
         self.auto_run = auto_run
         self.log_started = False
-        self.message_counter = -1  # it will get to zero with bot start message
-        self.job_counter = 0
 
         self.intents = discord.Intents.all()
         self.intents.message_content = True
@@ -64,16 +63,16 @@ class MjAutomator:
         @self.client.event
         async def on_message(message):
             # get all messsages from the channel and log them
-            await self.logger.log(f"{message.author.id}: {message.content}")
+            await self.logger.log(f"Message: {message.author.id}: {message.content}")
 
             # if the message is not from midjourney itself, ignore it
-            if message.author.id != config.MIDJOURNEY_ID or message.content == "" or not message.attachments:
+            if message.author.id != config.MIDJOURNEY_ID or not message.attachments:  # or message.content == "" or not message.attachments:
                 return
 
             # process the message
-            self.message_counter += 1
             await self.downloader.download_process(message)
             await self.upscaler.upscale_process(message)
+            await self.job_manager.process_message(message)
 
         @self.client.command()
         async def mj_imagine(ctx, *, prompt: str):
@@ -96,8 +95,6 @@ class MjAutomator:
                 await self.logger.log(f"Upscale ERROR: Request has failed; please try later, id: {message_id}, hash: {message_hash}")
                 await ctx.send(f"Upscale: Request has failed; please try later")
                 return
-            else:
-                await self.logger.log(f"Upscale SUCCESS: id: {message_id}, hash: {message_hash}")
 
         @self.client.command()
         async def mj_upscale_max(ctx, message_id: str, message_hash: str):
@@ -207,13 +204,13 @@ class MjAutomator:
             for prompt in prompts:
                 prompt = prompt.strip()
                 if prompt != "":
-                    await self.main.job_manager.add_job((self.main.prompter.send_prompt, prompt))
+                    await self.main.job_manager.add_job(self.main.job_manager.Job((self.main.prompter.send_prompt, prompt)))
 
         async def get_prompts_from_file(self):
             prompts = []
             try:
                 with open(config.PROMPT_FILE, 'r') as prompt_file:
-                    prompts = prompt_file.readlines()
+                    prompts = [line for line in prompt_file if line.strip()]
 
                 # skip if no prompts in file
                 if len(prompts) != 0:
@@ -221,7 +218,7 @@ class MjAutomator:
                     open(config.PROMPT_FILE, 'w').close()
                     # Copy the prompts to the done file (append)
                     with open(config.DONE_PROMPT_FILE, 'a') as done_prompt_file:
-                        done_prompt_file.write(''.join(prompts))
+                        done_prompt_file.write(''.join(prompts) + '\n')
                 print(f'Prompt batch import finished: {len(prompts)} prompts queued.')
 
             except FileNotFoundError:
@@ -270,9 +267,14 @@ class MjAutomator:
             if not config.ENABLE_UPSCALE and not config.ENABLE_UPSCALE_MAX:
                 return
 
-            # if message.reference or not config.ENABLE_UPSCALE:  # if the message is a reply or auto upscale is disabled
-            #     return
-            if message.author.id != config.MIDJOURNEY_ID:
+            # if the message is a reply, get the author id from
+            # original_message = None
+            # if message.reference is not None:
+            #     await self.main.logger.log(f"UPSCALE UPSCALE UPSCALE request is a reply to {message.reference.message_id}")
+            #     # This message is a reply.
+            #     original_message = await message.channel.fetch_message(message.reference.message_id)
+
+            if message.author.id != config.MIDJOURNEY_ID:  # or original_message.author.id != config.MIDJOURNEY_ID:
                 return
 
             try:
@@ -291,7 +293,7 @@ class MjAutomator:
                 if any(s in lowered_message_content for s in config.UPSCALE_TAGS):
                     # allow for max upscale if it's enabled in config (only works for v4)
                     if config.ENABLE_UPSCALE_MAX:
-                        await self.main.upscaler.max_upscale(ctx, message_id, message_hash)
+                        await self.main.upscaler.max_upscale(ctx, message_id, message_hash, lowered_message_content)
                 else:
                     # if not already upscaled, upscale default
                     await self.main.upscaler.default_upscale(ctx, message_id, message_hash, lowered_message_content)
@@ -299,49 +301,137 @@ class MjAutomator:
             except Exception as e:
                 print(f"An error occurred: {e}")
 
-        async def default_upscale(self, ctx, message_id, message_hash, lowered_message_content):
+        async def default_upscale(self, ctx, message_id, message_hash, lowered_message_content=""):
             for i in range(1, 5):
                 # add to job queue
-                await self.main.job_manager.add_job((self.main.mj_upscale, ctx, i, message_id, message_hash))
+                await self.main.job_manager.add_job(self.main.job_manager.Job((self.main.mj_upscale, ctx, i, message_id, message_hash)))
 
-        async def max_upscale(self, ctx, message_id, message_hash):
+        async def max_upscale(self, ctx, message_id, message_hash, lowered_message_content=""):
             # add to job queue
-            await self.main.job_manager.add_job((self.main.mj_upscale_max, ctx, message_id, message_hash))
+            await self.main.job_manager.add_job(self.main.job_manager.Job((self.main.mj_upscale_max, ctx, message_id, message_hash)))
 
     class JobManager:
+
+        class Job:
+            def __init__(self, job):
+                self.job = job
+                self.job_function = None
+                self.args = None
+                self.kwargs = None
+                self.unpack()
+
+            def unpack(self):
+                self.job_function, *self.args, self.kwargs = self.job
+
         def __init__(self, main):
             self.main = main
             self.client = self.main.client
             self.queue = asyncio.Queue()
-            self.job_number = 1
+            self.job_number = 1  # this only goes to log
+            self.running_jobs = 0  # number of concurrent jobs waiting for the image to be ready
+            self.flush_counter = 0  # check for the timeout if the concurrent capacity is at max
+            self.flush_counter_default = 0  # check for the timeout in the main loop
+            self.prev_num_que_jobs = 0  # previous number of queued jobs for comparison
+            self.prev_num_run_jobs = 0  # previous number of running jobs for comparison
+            self.flush_check_counter = 0  # how many times the flush check was performed (runs every minute)
+            self.completed_jobs = 0  # number of completed jobs during the uptime
 
         async def add_job(self, job):
             await self.queue.put(job)
 
-        async def get_job_count(self):
+        async def get_queue_count(self):
             return self.queue.qsize()
 
         async def do_job(self, job):
-            job_function, *args, kwargs = job
-            await job_function(*args, kwargs)
+            await job.job_function(*job.args, job.kwargs)
+            self.running_jobs += 1
+
+        async def report(self):
+            print(f"\rJobs in queue: {await self.get_queue_count()}, running: {self.running_jobs}, completed: {self.completed_jobs}", end="")
 
         async def process_jobs(self):
-            print("Starting job processing...")
+            self.flush_counter = 0  # how much time (seconds) passed - check in the maxed capacity case
+            self.flush_counter_default = 0  # as above - check in the main loop
+
             await asyncio.sleep(5)
+            print("Starting job processing...")
 
             while True:
-                print(f"\rJobs in queue: {await self.get_job_count()}", end="")
-                job = await self.queue.get()
-                if job is not None:
-                    try:
-                        await self.main.logger.log(f"Processing job #{self.job_number}, jobs left in queue: {await self.get_job_count()}: {job}")
-                        self.job_number += 1
-                        await self.do_job(job)
-                    except DiscordServerError as e:
-                        print(f"DiscordServerError: {e}")
-                        await asyncio.sleep(60)
+                await self.report()
+                # if the running jobs queue is full, wait and try again
+                if self.running_jobs >= config.CONCURRENT_JOBS_LIMIT:
+                    # but if the bot seems to be hanged, flush jobs
+                    # this only takes care of the full capacity case, let's make it more broad
+                    if self.flush_counter >= config.HANGED_JOB_TIMEOUT and self.queue.qsize() == self.prev_num_que_jobs:
+                        await self.flush()
+                        continue
 
-                await asyncio.sleep(10)  # sleep for 30 seconds between jobs (or waiting for next ones)
+                    await asyncio.sleep(10)
+                    self.flush_counter += 10
+                    self.prev_num_que_jobs = self.queue.qsize()
+                    continue
+                else:
+                    # the default case for hang check
+                    self.flush_counter_default += 2
+                    if self.flush_counter_default == 60:  # every 60 seconds check if we need to flush
+                        self.flush_counter_default = 0
+                        await self.check_for_hang()
+
+                job = await self.queue.get()  # this waits for a job if the queue is empty
+
+                try:
+                    await self.main.logger.log(f"-------: job #{self.job_number}, in queue: {await self.get_queue_count()}: {job}")
+                    self.job_number += 1
+                    await self.do_job(job)
+                except DiscordServerError as e:
+                    print(f"DiscordServerError: {e}")
+                    await asyncio.sleep(60)  # if we're having some errors, maybe a simple timeout will help
+                finally:
+                    self.queue.task_done()
+                    await asyncio.sleep(config.TIMEOUT_BETWEEN_JOBS)
+
+        async def check_for_hang(self):
+            if self.queue.qsize() == 0 and self.running_jobs == 0:  # if both lists are empty, don't bother
+                return
+
+            if self.flush_check_counter == 0:  # is this the first run?
+                self.prev_num_que_jobs = self.queue.qsize()
+                self.prev_num_run_jobs = self.running_jobs
+
+            if self.flush_check_counter == config.HANGED_JOB_TIMEOUT / 60:  # if we've reached the timeout
+                # if the values haven't changed, flush
+                if self.prev_num_que_jobs == self.queue.qsize() and self.prev_num_run_jobs == self.running_jobs:
+                    print("default flush")
+                    await self.flush()
+                    self.flush_check_counter = 0
+                    return
+
+            self.flush_check_counter += 1
+
+        async def flush(self):
+            # in the end this needs to be done manually from the UI with the alert to the user to check discord
+            # for the captcha and only after catcha to proceed with the flush
+            print(f"\nFlushing queue... Removed {self.running_jobs} jobs.")
+            self.running_jobs = 0
+            self.flush_counter = 0
+            self.flush_counter_default = 0
+
+        async def process_message(self, message):
+            # Define the phrases to match
+            match_phrases = ['fast', 'relaxed']
+            # Define the phrases to avoid
+            avoid_phrases = ['\\(Waiting to start\\)', 'Upscaling', '\\([0-9]{1,3}%\\)']
+            # Combine all conditions into a single regex pattern
+            pattern = re.compile(
+                r'^' + ''.join([f'(?!.*?{phrase})' for phrase in avoid_phrases]) +
+                r'(.*?(' + '|'.join([f'\\({phrase}[^)]*\\)|Image #[0-9]+' for phrase in match_phrases]) + r').*)$'
+            )
+
+            if pattern.match(message.content):
+                self.running_jobs = max(0, self.running_jobs - 1)
+                self.completed_jobs += 1
+
+            await self.report()
 
     class Logger:
         def __init__(self, main):
@@ -358,5 +448,3 @@ class MjAutomator:
 
             with open(config.LOG_FILE, 'a') as log_file:
                 log_file.write(f"{datetime.now()}: {message}\n")
-
-
