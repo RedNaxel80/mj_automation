@@ -2,8 +2,10 @@ import threading
 from mj_automation import MjAutomator
 import time
 import asyncio
-from ui import SimpleApp
+from ui import SimpleApp, FileDialogDemo
+
 from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QLineEdit
+from PyQt6.QtCore import QDir
 import sys
 
 
@@ -17,6 +19,9 @@ class Connector:
 
     def send_prompt_to_bot(self, prompt):
         self.send_command(self.bot.prompter.send_prompt(prompt))
+
+    def send_file_to_bot(self, file_path):
+        self.send_command(self.bot.prompter.get_prompts_from_file(file_path))
 
 
 def main_threaded():
@@ -53,9 +58,13 @@ async def main_async():
 
 
 def start_ui(connector):
-    app = QApplication(sys.argv)
-    ex = SimpleApp(connector)
-    sys.exit(app.exec())
+    # app = QApplication(sys.argv)
+    # ex = SimpleApp(connector)
+    # sys.exit(app.exec())
+    app = QApplication([])
+    demo = FileDialogDemo(connector)
+    demo.show()
+    app.exec()
 
 
 if __name__ == '__main__':
