@@ -1,50 +1,33 @@
+from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QLineEdit
 import sys
-from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QLabel, QLineEdit, QMessageBox
+
 
 class SimpleApp(QWidget):
-    def __init__(self):
+    def __init__(self, connector):
         super().__init__()
-
-        # Initialize the window
         self.initUI()
+        self.connector = connector
 
     def initUI(self):
-        # Create a QVBoxLayout
         layout = QVBoxLayout()
 
-        # Create a QLabel
-        self.label = QLabel('Enter your name:')
-        layout.addWidget(self.label)
+        self.inputField = QLineEdit()
+        self.inputField.returnPressed.connect(self.on_submit)  # Add this line
+        layout.addWidget(self.inputField)
 
-        # Create a QLineEdit
-        self.line_edit = QLineEdit()
-        self.line_edit.returnPressed.connect(self.show_message)  # Connect the returnPressed signal
-        layout.addWidget(self.line_edit)
+        btn = QPushButton("Send", self)
+        btn.clicked.connect(self.on_submit)
+        layout.addWidget(btn)
 
-        # Create a QPushButton
-        self.button = QPushButton('Submit')
-        self.button.clicked.connect(self.show_message)
-        layout.addWidget(self.button)
-
-        # Set the layout
         self.setLayout(layout)
-
-        # Set the window properties
-        self.setGeometry(300, 300, 200, 150)
-        self.setWindowTitle('Simple PyQt6 App')
+        self.setWindowTitle("Midjourney Automation UI")
         self.show()
 
-    def show_message(self):
-        # Show a message box when the button is clicked
-        QMessageBox.information(self, 'Message', f'Hello, {self.line_edit.text()}!')
+    def on_submit(self):
+        self.process_prompt(self.inputField.text())
+        self.inputField.clear()
 
+    def process_prompt(self, input):
+        print(f"\nProcessing: {input}", end="")
+        self.connector.send_prompt_to_bot(input)
 
-def main():
-    app = QApplication(sys.argv)
-
-    ex = SimpleApp()
-
-    sys.exit(app.exec())
-
-if __name__ == '__main__':
-    main()

@@ -1,39 +1,63 @@
-import mj_automation
-import config
 import threading
 from mj_automation import MjAutomator
 import time
 import asyncio
+from ui import SimpleApp
+from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QLineEdit
+import sys
 
 
-def start_bot(bot):
-    bot.start_bot()
+class Connector:
+    def __init__(self, bot, loop):
+        self.loop = loop
+        self.bot = bot
+
+    def send_command(self, command):
+        asyncio.run_coroutine_threadsafe(command, self.loop)
+
+    def send_prompt_to_bot(self, prompt):
+        self.send_command(self.bot.prompter.send_prompt(prompt))
 
 
-def mj_command(loop, command):
-    return asyncio.run_coroutine_threadsafe(command, loop)
+def main_threaded():
+    mj_bot = MjAutomator(auto_run=False)
+    thread = threading.Thread(target=mj_bot.start_bot, args=())
+    thread.start()
+
+    # wait for the bot loop to be accessible
+    while not mj_bot.ready_status:
+        time.sleep(1)
+    else:
+        mj_loop = mj_bot.client.loop
+
+    connector = Connector(mj_bot, mj_loop)
+    # asyncio.run_coroutine_threadsafe(mj_bot.prompter.send_prompt("parrot"), mj_loop)
+    start_ui(connector)
+    # below will not be executed as the ui is blocking
+
+    # asyncio.run_coroutine_threadsafe(mj_bot.stop_bot(), mj_loop)
+    #
+    # while thread.is_alive():
+    #     time.sleep(1)
+    # else:
+    #     thread.join()
 
 
-mj_bot = MjAutomator()
-thread = threading.Thread(target=start_bot, args=(mj_bot,))
-thread.start()
-
-time.sleep(10)
-
-mj_loop = mj_bot.client.loop
-future = mj_command(mj_loop, mj_bot.prompter.start_prompting())
-# print("Future:", future.result())  # check if the thread exited, it blocks the code
-
-# future = asyncio.run_coroutine_threadsafe(mj_bot.prompter.start_prompting(), loop)
-# future = asyncio.run_coroutine_threadsafe(mj_bot.prompter.send_prompt("laboratory"), loop)
-
-# while True:
-# with open(config.PROMPT_FILE, "r") as prompt_file:
-#     prompt = prompt_file.readline().strip()
-#     # if prompt == "":
-#     #     break
-#     print("Sending prompt:", prompt)
-#     asyncio.run_coroutine_threadsafe(mj_bot.prompter.send_prompt(prompt), mj_loop)
-#     time.sleep(10)
+async def main_async():
+    mj_bot = MjAutomator()
+    asyncio.create_task(mj_bot.start_bot_async())
+    await mj_bot.ready.wait()
+    await mj_bot.prompter.send_prompt("parrot")
+    time.sleep(10)
+    start_ui(mj_bot)
 
 
+def start_ui(connector):
+    app = QApplication(sys.argv)
+    ex = SimpleApp(connector)
+    sys.exit(app.exec())
+
+
+if __name__ == '__main__':
+    # asyncio.run(main_async())
+    main_threaded()
