@@ -210,24 +210,24 @@ class MjAutomator:
             if not config.ENABLE_PROMPTING:
                 return
 
-            # Get the prompts from the file
-            prompts = await self.get_prompts_from_file()
-
-            # add all non-empty prompts to queue
-            for prompt in prompts:
-                if prompt != "":
-                    await self.main.job_manager.add_job(self.main.job_manager.Job((self.main.prompter.send_prompt, prompt)))
+            # Get the prompts from the default file on the start
+            await self.get_prompts_from_file()
 
         async def get_prompts_from_file(self, file=config.PROMPT_FILE):
+            print("prompt file reading started")
+            if not config.ENABLE_PROMPTING:
+                return
+            print("file reading first check done")
             prompts = []
             try:
+                print("opening prompt file")
                 with open(file, 'r') as prompt_file:
                     prompts = [line for line in prompt_file if line.strip()]
 
                 # skip if no prompts in file
-                if len(prompts) != 0:
-                    # Remove the prompts from the file
-                    open(config.PROMPT_FILE, 'w').close()
+                if len(prompts) != 0 and file == config.PROMPT_FILE:
+                    # Remove the prompts from the file if it's the default file
+                    open(file, 'w').close()
                     # Copy the prompts to the done file (append)
                     with open(config.DONE_PROMPT_FILE, 'a') as done_prompt_file:
                         done_prompt_file.write(''.join(prompts) + '\n')
@@ -239,10 +239,15 @@ class MjAutomator:
             except FileNotFoundError:
                 print("Error on reading the prompt file.")
 
-            finally:
-                return prompts
+            # add all non-empty prompts to queue
+            for prompt in prompts:
+                if prompt != "":
+                    await self.main.job_manager.add_job(self.main.job_manager.Job((self.main.prompter.send_prompt, prompt)))
 
         async def send_prompt(self, prompt):
+            if not config.ENABLE_PROMPTING:
+                return
+
             # Check if there are any messages in the channel
             if self.main.channel.last_message_id is not None:
                 # Try to fetch the last message
