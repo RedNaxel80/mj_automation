@@ -1,12 +1,9 @@
+#!python
 import threading
 from mj_automation import MjAutomator
 import time
 import asyncio
-from ui import SimpleApp, FileDialogDemo
-
-from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QLineEdit
-from PyQt6.QtCore import QDir
-import sys
+from ui import UI
 
 
 class Connector:
@@ -22,6 +19,11 @@ class Connector:
 
     def send_file_to_bot(self, file_path):
         self.send_command(self.bot.prompter.get_prompts_from_file(file_path))
+
+
+class ConnectorAsync:
+    def __init__(self, bot):
+        self.bot = bot
 
 
 def main_threaded():
@@ -54,19 +56,21 @@ async def main_async():
     await mj_bot.ready.wait()
     await mj_bot.prompter.send_prompt("parrot")
     time.sleep(10)
-    start_ui(mj_bot)
+    # connector_async is just a mockup - no working implementation
+    connector = ConnectorAsync(mj_bot)
+    start_ui(connector)
+
+
+def main_ui_test():
+    print("doing ui test only - not bot connected")
+    start_ui(None)
 
 
 def start_ui(connector):
-    # app = QApplication(sys.argv)
-    # ex = SimpleApp(connector)
-    # sys.exit(app.exec())
-    app = QApplication([])
-    demo = FileDialogDemo(connector)
-    demo.show()
-    app.exec()
+    ui = UI(connector)
 
 
 if __name__ == '__main__':
     # asyncio.run(main_async())
-    main_threaded()
+    # main_threaded()
+    main_ui_test()
