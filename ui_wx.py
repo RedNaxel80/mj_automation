@@ -49,4 +49,3 @@ class MyFrame2(wx.Frame):
         frame = MyFrame2(None)
         frame.Show(True)
         app.MainLoop()
-

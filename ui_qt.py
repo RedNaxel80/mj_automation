@@ -69,4 +69,3 @@ class FileDialogDemo(QWidget):
         else:
             print('No file selected.')
 
-
