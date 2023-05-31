@@ -244,6 +244,16 @@ class MjAutomator:
                 if prompt != "":
                     await self.main.job_manager.add_job(self.main.job_manager.Job((self.main.prompter.send_prompt, prompt)))
 
+        async def parse_multiple_prompts(self, multiline_prompts):
+            if not config.ENABLE_PROMPTING:
+                return
+
+            # Split the prompts by line (and eliminate empty)
+            prompts = [line for line in multiline_prompts.splitlines() if line.strip()]
+            # Add the prompts to the queue
+            for prompt in prompts:
+                await self.main.job_manager.add_job(self.main.job_manager.Job((self.main.prompter.send_prompt, prompt)))
+
         async def send_prompt(self, prompt):
             if not config.ENABLE_PROMPTING:
                 return
