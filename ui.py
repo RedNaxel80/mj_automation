@@ -1,70 +1,46 @@
+import wx
+import wx.xrc
 from PyQt6.QtCore import QStandardPaths
 from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QLineEdit, QFileDialog, QLabel
 import sys
 
-
-class SimpleApp(QWidget):
-    def __init__(self, connector):
-        super().__init__()
-        self.initUI()
-        self.connector = connector
-
-    def initUI(self):
-        layout = QVBoxLayout()
-
-        self.inputField = QLineEdit()
-        self.inputField.returnPressed.connect(self.on_submit)  # Add this line
-        layout.addWidget(self.inputField)
-
-        btn = QPushButton("Send", self)
-        btn.clicked.connect(self.on_submit)
-        layout.addWidget(btn)
-
-        self.setLayout(layout)
-        self.setWindowTitle("Midjourney Automation UI")
-        self.show()
-
-    def on_submit(self):
-        self.process_prompt(self.inputField.text())
-        self.inputField.clear()
-
-    def process_prompt(self, input):
-        print(f"\nProcessing: {input}", end="")
-        self.connector.send_prompt_to_bot(input)
+import ui_qt
+import ui_wx
 
 
-class FileDialogDemo(QWidget):
-    def __init__(self, connector):
-        super().__init__()
-        self.setWindowTitle("File Dialog Demo")
-        self.file_path = ''
-        self.connector = connector
-
-        layout = QVBoxLayout()
-        self.setLayout(layout)
-
-        self.label = QLabel()
-        layout.addWidget(self.label)
-
-        self.btn_select = QPushButton("Select File")
-        self.btn_select.clicked.connect(self.select_file)
-        layout.addWidget(self.btn_select)
-
-        self.btn_submit = QPushButton("Submit")
-        self.btn_submit.clicked.connect(self.submit_file)
-        layout.addWidget(self.btn_submit)
-
-    def select_file(self):
-        file_dialog = QFileDialog()
-        self.file_path, _ = file_dialog.getOpenFileName(self, "Select File", QStandardPaths.writableLocation(QStandardPaths.StandardLocation.HomeLocation))
-        self.label.setText(f'Selected File: {self.file_path}')
-
-    def submit_file(self):
-        if self.file_path:
-            # call your file processing function here
-            self.connector.send_file_to_bot(self.file_path)
-            print(f'File submitted: {self.file_path}')
-        else:
-            print('No file selected.')
+class UIType:
+	QT = 0
+	WX = 1
 
 
+UI_TYPE = UIType.QT
+
+
+class UI:
+	def __init__(self, connector):
+		self.connector = connector
+		self.ui = UI_TYPE
+		self.start(self.connector)
+
+	def start(self, connector):
+		if self.ui == UIType.QT:
+			self.start_qt(connector)
+		elif self.ui == UIType.WX:
+			self.start_wx(connector)
+
+	def start_qt(self, connector):
+		# self.ui_qt.start()  # # maybe there's a way to start this within the QT UI class
+		# app = QApplication([])
+		# demo = FileDialogDemo(connector)
+		# app.exec()
+
+		app = QApplication(sys.argv)
+		ex = ui_qt.SimpleApp(connector)
+		sys.exit(app.exec())
+
+	def start_wx(self, connector):
+		# self.ui_wx.start()  # maybe there's a way to start this within the WX UI class
+		app = wx.App(False)
+		frame = ui_wx.MyFrame2(connector)
+		frame.Show(True)
+		app.MainLoop()
