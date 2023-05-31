@@ -15,7 +15,8 @@ class Connector:
         asyncio.run_coroutine_threadsafe(command, self.loop)
 
     def send_prompt_to_bot(self, prompt):
-        self.send_command(self.bot.prompter.send_prompt(prompt))
+        # self.send_command(self.bot.prompter.send_prompt(prompt))
+        self.send_command(self.bot.prompter.parse_multiple_prompts(prompt))
 
     def send_file_to_bot(self, file_path):
         self.send_command(self.bot.prompter.get_prompts_from_file(file_path))
@@ -62,7 +63,7 @@ async def main_async():
 
 
 def main_ui_test():
-    print("doing ui test only - not bot connected")
+    print("doing ui test only - bot not connected")
     start_ui(None)
 
 
