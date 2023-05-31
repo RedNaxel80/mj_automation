@@ -13,7 +13,7 @@ class UIType:
 	WX = 1
 
 
-UI_TYPE = UIType.QT
+UI_TYPE = UIType.WX
 
 
 class UI:
@@ -39,8 +39,4 @@ class UI:
 		sys.exit(app.exec())
 
 	def start_wx(self, connector):
-		# self.ui_wx.start()  # maybe there's a way to start this within the WX UI class
-		app = wx.App(False)
-		frame = ui_wx.MyFrame2(connector)
-		frame.Show(True)
-		app.MainLoop()
+		ui_wx.start(connector)
