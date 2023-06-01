@@ -11,11 +11,21 @@ import mj_commands
 from datetime import datetime
 import re
 
+
 # load_dotenv()
 
 
 class MjAutomator:
+    class Status:
+        STARTING = "starting"
+        READY = "ready"
+        PROCESSING = "processing"
+        STOPPED = "stopped"
+        ERROR = "error"
+        FLUSHING = "flushing"
+
     def __init__(self, auto_run=False):
+        self.status = self.Status.STARTING
         self.prompt_counter = 0
         self.auto_run = auto_run
         self.log_started = False
@@ -61,16 +71,19 @@ class MjAutomator:
 
             print(f"Logged in as {self.client.user}")
             print("--run settings--")
-            print(f"Downloader: {'enabled' if self.downloader else 'disabled'}, prompter: {'enabled' if self.prompter else 'disabled'}")
+            print(
+                f"Downloader: {'enabled' if self.downloader else 'disabled'}, prompter: {'enabled' if self.prompter else 'disabled'}")
             print(f"Upscale: {config.ENABLE_UPSCALE}, upscale_max: {config.ENABLE_UPSCALE_MAX}")
-            print(f"Download original: {config.DOWNLOAD_ORIGINAL}, download upscale: {config.DOWNLOAD_UPSCALE}, download upscale_max: {config.DOWNLOAD_UPSCALE_MAX}")
+            print(
+                f"Download original: {config.DOWNLOAD_ORIGINAL}, download upscale: {config.DOWNLOAD_UPSCALE}, download upscale_max: {config.DOWNLOAD_UPSCALE_MAX}")
             print("---------------")
 
             await self.channel.send("Bot ready!")
             asyncio.create_task(self.job_manager.process_jobs())
             asyncio.create_task(self.prompter.prompt_process())
-            self.ready.set()
-            self.ready_status = True
+            self.ready.set()  # this sets the ready event that main loop is waiting for to continue for the threaded version
+            self.ready_status = True  # same concept as above for the asyncio version
+            # self.status = self.Status.READY
 
         @self.client.event
         async def on_message(message):
@@ -104,7 +117,8 @@ class MjAutomator:
             response = mj_commands.upscale(index, message_id, message_hash)
 
             if response.status_code >= 400:
-                await self.logger.log(f"Upscale ERROR: Request has failed; please try later, id: {message_id}, hash: {message_hash}")
+                await self.logger.log(
+                    f"Upscale ERROR: Request has failed; please try later, id: {message_id}, hash: {message_hash}")
                 await ctx.send(f"Upscale: Request has failed; please try later")
                 return
 
@@ -133,7 +147,8 @@ class MjAutomator:
                 return
 
             # different mj versions have different message formats, so we need to check for a list here
-            file_prefix = config.UPSCALE_PREFIX if any(s in message.content.lower() for s in config.UPSCALE_TAGS) else ''
+            file_prefix = config.UPSCALE_PREFIX if any(
+                s in message.content.lower() for s in config.UPSCALE_TAGS) else ''
             # new condition for upscale max
             file_prefix = config.UPSCALE_MAX_PREFIX if config.UPSCALE_MAX_TAG in message.content.lower() else file_prefix
 
@@ -143,7 +158,8 @@ class MjAutomator:
                     (not file_prefix and config.DOWNLOAD_ORIGINAL):
                 for attachment in message.attachments:
                     if attachment.filename.lower().endswith(config.ALLOWED_EXTENSIONS):
-                        await self.download_image(attachment.url, f"{file_prefix}{'_'.join(attachment.filename.split('_')[1:])}")
+                        await self.download_image(attachment.url,
+                                                  f"{file_prefix}{'_'.join(attachment.filename.split('_')[1:])}")
 
         async def download_image(self, url, filename):
             response = requests.get(url)
@@ -240,7 +256,8 @@ class MjAutomator:
             # add all non-empty prompts to queue
             for prompt in prompts:
                 if prompt != "":
-                    await self.main.job_manager.add_job(self.main.job_manager.Job((self.main.prompter.send_prompt, prompt)))
+                    await self.main.job_manager.add_job(
+                        self.main.job_manager.Job((self.main.prompter.send_prompt, prompt)))
 
         async def parse_multiple_prompts(self, multiline_prompts):
             if not config.ENABLE_PROMPTING:
@@ -325,11 +342,13 @@ class MjAutomator:
         async def default_upscale(self, ctx, message_id, message_hash, lowered_message_content=""):
             for i in range(1, 5):
                 # add to job queue
-                await self.main.job_manager.add_job(self.main.job_manager.Job((self.main.mj_upscale, ctx, i, message_id, message_hash)))
+                await self.main.job_manager.add_job(
+                    self.main.job_manager.Job((self.main.mj_upscale, ctx, i, message_id, message_hash)))
 
         async def max_upscale(self, ctx, message_id, message_hash, lowered_message_content=""):
             # add to job queue
-            await self.main.job_manager.add_job(self.main.job_manager.Job((self.main.mj_upscale_max, ctx, message_id, message_hash)))
+            await self.main.job_manager.add_job(
+                self.main.job_manager.Job((self.main.mj_upscale_max, ctx, message_id, message_hash)))
 
     class JobManager:
 
@@ -356,11 +375,12 @@ class MjAutomator:
             self.prev_num_run_jobs = 0  # previous number of running jobs for comparison
             self.flush_check_counter = 0  # how many times the flush check was performed (runs every minute)
             self.completed_jobs = 0  # number of completed jobs during the uptime
+            self.queued_jobs = 0  # number of queued jobs during the uptime
 
         async def add_job(self, job):
             await self.queue.put(job)
 
-        async def get_queue_count(self):
+        def get_queue_count(self):
             return self.queue.qsize()
 
         async def do_job(self, job):
@@ -368,15 +388,18 @@ class MjAutomator:
             self.running_jobs += 1
 
         async def report(self):
-            print(f"\rJobs in queue: {await self.get_queue_count()}, running: {self.running_jobs}, completed: {self.completed_jobs}", end="")
+            self.queued_jobs = self.queue.qsize()
+            print(
+                f"\rJobs in queue: {self.get_queue_count()}, running: {self.running_jobs}, completed: {self.completed_jobs}",
+                end="")
 
         async def process_jobs(self):
             self.flush_counter = 0  # how much time (seconds) passed - check in the maxed capacity case
             self.flush_counter_default = 0  # as above - check in the main loop
 
-            await asyncio.sleep(5)
+            await asyncio.sleep(3)  # do we really need that here?
             print("Starting job processing...")
-
+            self.main.status = self.main.Status.READY
             while True:
                 await self.report()
                 # if the running jobs queue is full, wait and try again
@@ -401,9 +424,11 @@ class MjAutomator:
                 job = await self.queue.get()  # this waits for a job if the queue is empty
 
                 try:
-                    await self.main.logger.log(f"-------: job #{self.job_number}, in queue: {await self.get_queue_count()}: {job}")
+                    await self.main.logger.log(
+                        f"-------: job #{self.job_number}, in queue: {self.get_queue_count()}: {job}")
                     self.job_number += 1
                     await self.do_job(job)
+                    self.main.status = self.main.Status.PROCESSING  # set the status for the ui
                 except DiscordServerError as e:
                     print(f"DiscordServerError: {e}")
                     await asyncio.sleep(60)  # if we're having some errors, maybe a simple timeout will help
@@ -433,6 +458,7 @@ class MjAutomator:
             # in the end this needs to be done manually from the UI with the alert to the user to check discord
             # for the captcha and only after catcha to proceed with the flush
             print(f"\nFlushing queue... Removed {self.running_jobs} jobs.")
+            self.main.status = self.main.Status.FLUSHING
             self.running_jobs = 0
             self.flush_counter = 0
             self.flush_counter_default = 0
@@ -451,6 +477,8 @@ class MjAutomator:
             if pattern.match(message.content):
                 self.running_jobs = max(0, self.running_jobs - 1)
                 self.completed_jobs += 1
+                if self.get_queue_count() == 0:
+                    self.main.status = self.main.Status.READY
 
             await self.report()
 
