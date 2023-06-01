@@ -150,6 +150,12 @@ class MainWindow(wx.Frame):
     def __del__(self):
         pass
 
+    def IsBotRunning(self):
+        if self.connector.bot.status in (self.connector.bot.Status.READY, self.connector.bot.Status.PROCESSING):
+            return True
+        else:
+            return False
+
     def UpdateStatus(self, event):
         if self.connector.bot:
             self.statusbar.SetStatusText(f"Bot: {self.connector.bot.status}", 0)
@@ -164,6 +170,8 @@ class MainWindow(wx.Frame):
         event.Skip()
 
     def ProcessTextEventFromInput(self, event):
+        if not self.IsBotRunning():
+            return
         prompt = self.input_prompt.GetValue()
         if prompt != "prompt..." and prompt != "":
             self.SendPromptEnable(event)
@@ -183,6 +191,9 @@ class MainWindow(wx.Frame):
         self.SendPrompt(event)
 
     def SendPrompt(self, event):
+        if not self.IsBotRunning():
+            return
+
         prompt = self.input_prompt.GetValue()
         if prompt == "prompt..." or prompt == "":
             return
@@ -193,7 +204,7 @@ class MainWindow(wx.Frame):
         self.button_submit_prompt.Disable()
 
     def ImportPromptFile(self, event):
-        if not self.prompts_file_name:
+        if not self.prompts_file_name or not self.IsBotRunning():
             return
 
         self.connector.send_file_to_bot(self.prompts_file_name)
