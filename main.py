@@ -21,6 +21,12 @@ class Connector:
     def send_file_to_bot(self, file_path):
         self.send_command(self.bot.prompter.get_prompts_from_file(file_path))
 
+    def start_bot(self):
+        pass
+
+    def stop_bot(self):
+        asyncio.run_coroutine_threadsafe(self.bot.stop_bot(), self.loop)
+
 
 class ConnectorAsync:
     def __init__(self, bot):
