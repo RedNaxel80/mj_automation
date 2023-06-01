@@ -143,7 +143,7 @@ class MjAutomator:
                     (not file_prefix and config.DOWNLOAD_ORIGINAL):
                 for attachment in message.attachments:
                     if attachment.filename.lower().endswith(config.ALLOWED_EXTENSIONS):
-                        await self.download_image(attachment.url, f"{file_prefix}{attachment.filename}")
+                        await self.download_image(attachment.url, f"{file_prefix}{'_'.join(attachment.filename.split('_')[1:])}")
 
         async def download_image(self, url, filename):
             response = requests.get(url)
