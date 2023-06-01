@@ -211,16 +211,14 @@ class MjAutomator:
                 return
 
             # Get the prompts from the default file on the start
-            await self.get_prompts_from_file()
+            # await self.get_prompts_from_file()
 
         async def get_prompts_from_file(self, file=config.PROMPT_FILE):
-            print("prompt file reading started")
             if not config.ENABLE_PROMPTING:
                 return
-            print("file reading first check done")
+
             prompts = []
             try:
-                print("opening prompt file")
                 with open(file, 'r') as prompt_file:
                     prompts = [line for line in prompt_file if line.strip()]
 
