@@ -73,5 +73,5 @@ def start_ui(connector):
 
 if __name__ == '__main__':
     # asyncio.run(main_async())
-    # main_threaded()
-    main_ui_test()
+    main_threaded()
+    # main_ui_test()
