@@ -29,14 +29,7 @@ class UI:
 			self.start_wx(connector)
 
 	def start_qt(self, connector):
-		# self.ui_qt.start()  # # maybe there's a way to start this within the QT UI class
-		# app = QApplication([])
-		# demo = FileDialogDemo(connector)
-		# app.exec()
-
-		app = QApplication(sys.argv)
-		ex = ui_qt.SimpleApp(connector)
-		sys.exit(app.exec())
+		ui_qt.start(connector)
 
 	def start_wx(self, connector):
 		ui_wx.start(connector)
