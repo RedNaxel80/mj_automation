@@ -151,7 +151,7 @@ class MainWindow(wx.Frame):
         pass
 
     def OnClose(self, event):
-        self.connector.bot.stop()
+        self.connector.stop_bot()
         self.Destroy()
 
     def IsBotRunning(self):
