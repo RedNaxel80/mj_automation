@@ -85,7 +85,7 @@ class Settings:
     def insert_defaults(self):
         # app setup
         self.write(0.1, Settings.version)
-        self.write(False, Settings.setup_completed)
+        self.write(True, Settings.setup_completed)
 
         # gpt settings
         self.write(None, Settings.gpt, Settings.api_key)
@@ -114,8 +114,8 @@ class Settings:
         self.write(True, Settings.prompt, Settings.enabled)  # should the prompting be enabled?
         self.write(False, Settings.prompt, Settings.upscale)
         self.write(False, Settings.prompt, Settings.upscale_max)  # this works only for v4 currently, it will create errors for v5 and v5.1
-        self.write(os.path.join(self.appdirs.user_config_dir), "mja_prompts.txt", Settings.prompt, Settings.file)
-        self.write(os.path.join(self.appdirs.user_config_dir), "mja_prompts_completed.txt", Settings.prompt, Settings.done_file)
+        self.write(os.path.join(self.appdirs.user_config_dir, "mja_prompts.txt"), Settings.prompt, Settings.file)
+        self.write(os.path.join(self.appdirs.user_config_dir, "mja_prompts_completed.txt"), Settings.prompt, Settings.done_file)
         self.write(["image #", "upscale"], Settings.prompt, Settings.upscale_tags)  # the part of the mj message that gets search for to consider it default upscale
         self.write("upscaled (beta)", Settings.prompt, Settings.upscale_max_tags)  # as above but for upscale max
 
