@@ -4,7 +4,52 @@ import appdirs
 
 
 class Settings:
+    # dictionary of json entries
+    version = "version"
+    setup_completed = "setup_completed"
+    gpt = "gpt"
+    api_key = "api_key"
+    master_query_file = "master_query_file"
+    discord = "discord"
+    server_id = "server_id"
+    channel_id = "channel_id"
+    bot_token = "bot_token"
+    main_token = "main_token"
+    api_url = "api_url"
+    mj_app_id = "mj_app_id"
+    download = "download"
+    enabled = "enabled"
+    folder = "folder"
+    use_absolute_path = "use_absolute_path"
+    original = "original"
+    upscale = "upscale"
+    upscale_max = "upscale_max"
+    split_original = "split_original"
+    split_prefix = "split_prefix"
+    upscale_max_prefix = "upscale_max_prefix"
+    upscale_prefix = "upscale_prefix"
+    allowed_extensions = "allowed_extensions"
+    prompt = "prompt"
+    file = "file"
+    done_file = "done_file"
+    upscale_tags = "upscale_tags"
+    upscale_max_tags = "upscale_max_tags"
+    logging = "logging"
+    persistent = "persistent"
+    jobmanager = "jobmanager"
+    timeout_between_jobs = "timeout_between_jobs"
+    hanged_job_timeout = "hanged_job_timeout"
+    concurrent_jobs_limit = "concurrent_jobs_limit"
+
     def __init__(self, appname="Mj-auto", filename="settings.json"):
+        # location of settings.json:
+        # Windows: On Windows, appdirs uses the APPDATA environment variable.
+        # This typically maps to a path like C:\Users\<Username>\AppData\Roaming\<Appname>.
+
+        # macOS: On macOS, appdirs uses the ~/Library/Application Support/<Appname> directory.
+
+        # Linux: On Linux, appdirs follows the XDG Base Directory Specification.
+        # The user-specific config is typically stored in ~/.config/<Appname>.
         self.appname = appname
         self.appdirs = appdirs.AppDirs(appname)
         self.filename = os.path.join(self.appdirs.user_config_dir, filename)
@@ -13,8 +58,6 @@ class Settings:
         if not os.path.isfile(self.filename):
             self.create()
             self.insert_defaults()
-        # if not self.read("setup_completed"):
-        #     self.insert_defaults()
 
     def create(self):
         with open(self.filename, 'w') as f:
@@ -39,78 +82,55 @@ class Settings:
         with open(self.filename, 'w') as f:
             json.dump(data, f)
 
-    def delete(self, key):
-        with open(self.filename, 'r') as f:
-            data = json.load(f)
-        if key in data:
-            del data[key]
-        with open(self.filename, 'w') as f:
-            json.dump(data, f)
-
     def insert_defaults(self):
         # app setup
-        self.write(0.1, "version")
-        self.write(False, "setup_completed")
+        self.write(0.1, Settings.version)
+        self.write(False, Settings.setup_completed)
 
         # gpt settings
-        self.write(None, "gpt", "api_key")
-        self.write(os.path.join(self.appdirs.user_config_dir, "gpt_query_file.txt"), "gpt", "master_query_file")
+        self.write(None, Settings.gpt, Settings.api_key)
+        self.write(os.path.join(self.appdirs.user_config_dir, "gpt_query_file.txt"), Settings.gpt, Settings.master_query_file)
 
         # discord settings
-        self.write(None, "discord", "SERVER_ID")
-        self.write(None, "discord", "CHANNEL_ID")
-        self.write(None, "discord", "BOT_TOKEN")
-        self.write(None, "discord", "MAIN_TOKEN")
+        self.write(None, Settings.discord, Settings.server_id)  # id of the server the bot is supposed to run on
+        self.write(None, Settings.discord, Settings.channel_id)  # id of the channel the bot is supposed to *run prompts on* (the downloader will work for any channel it is a member of !!!)
+        self.write(None, Settings.discord, Settings.bot_token)  # token for the bot
+        self.write(None, Settings.discord, Settings.main_token)  # token for your discord account that has the midjourney paid subscription
 
         # downloader settings
-        self.write(True, "bot", "download", "enabled")
-        self.write(os.path.join(os.path.expanduser("~"), "Downloads"), "bot", "download", "folder")
-        self.write(True, "bot", "download", "use_absolute_path")
-        self.write(True, "bot", "download", "original")
-        self.write(True, "bot", "download", "upscale")
-        self.write(True, "bot", "download", "upscale_max")
-        self.write(True, "bot", "download", "split_original")
-        self.write("S_", "bot", "download", "split_prefix")
-        self.write("UM_", "bot", "download", "upscale_max_prefix")
-        self.write("U_", "bot", "download", "upscale_prefix")
-        self.write([".png", ".jpg", ".jpeg", ".gif", ".webp"], "bot", "download", "allowed_extensions")  # do not touch
+        self.write(True, Settings.download, Settings.enabled)  # should the downloads be enabled?
+        self.write(os.path.join(os.path.expanduser("~"), "Downloads"), Settings.download, Settings.folder)  # download folder
+        self.write(True, Settings.download, Settings.use_absolute_path)  # is the above path an absolute one or relative to the script?
+        self.write(True, Settings.download, Settings.original)  # no point in downloading the original if you're upscaling all of them it anyway
+        self.write(True, Settings.download, Settings.upscale)
+        self.write(True, Settings.download, Settings.upscale_max)
+        self.write(True, Settings.download, Settings.split_original)  # do you want the original quadruple image split into four images?
+        self.write("S_", Settings.download, Settings.split_prefix)
+        self.write("U_", Settings.download, Settings.upscale_prefix)
+        self.write("UM_", Settings.download, Settings.upscale_max_prefix)
+        self.write([".png", ".jpg", ".jpeg", ".gif", ".webp"], Settings.download, Settings.allowed_extensions)  # do not touch
 
         # prompter settings
-        self.write(True, "bot", "prompt", "enabled")
-        self.write(False, "bot", "prompt", "upscale")
-        self.write(False, "bot", "prompt", "upscale_max")
-        self.write(os.path.join(self.appdirs.user_config_dir), "mja_prompts.txt", "bot", "prompt", "file")
-        self.write(os.path.join(self.appdirs.user_config_dir), "mja_prompts_completed.txt", "bot", "prompt", "done_file")
-        self.write(["image #", "upscale"], "bot", "prompt", "upscale_tags")  # do not touch
-        self.write("upscaled (beta)", "bot", "prompt", "upscale_max_tags")  # do not touch
+        self.write(True, Settings.prompt, Settings.enabled)  # should the prompting be enabled?
+        self.write(False, Settings.prompt, Settings.upscale)
+        self.write(False, Settings.prompt, Settings.upscale_max)  # this works only for v4 currently, it will create errors for v5 and v5.1
+        self.write(os.path.join(self.appdirs.user_config_dir), "mja_prompts.txt", Settings.prompt, Settings.file)
+        self.write(os.path.join(self.appdirs.user_config_dir), "mja_prompts_completed.txt", Settings.prompt, Settings.done_file)
+        self.write(["image #", "upscale"], Settings.prompt, Settings.upscale_tags)  # the part of the mj message that gets search for to consider it default upscale
+        self.write("upscaled (beta)", Settings.prompt, Settings.upscale_max_tags)  # as above but for upscale max
 
         # logging settings
-        self.write(True, "logging", "enabled")
-        self.write(False, "logging", "persistent")
-        self.write(os.path.join(self.appdirs.user_config_dir, "mja_logs.txt"), "logging", "file")
+        self.write(True, Settings.logging, Settings.enabled)
+        self.write(False, Settings.logging, Settings.persistent)
+        self.write(os.path.join(self.appdirs.user_config_dir, "mja_logs.txt"), Settings.logging, Settings.file)
 
         # Technical settings - DO NOT EDIT THOSE:
-        self.write("https://discord.com/api/v10/interactions", "discord", "API_URL")
-        self.write(936929561302675456, "discord", "MJ_APP_ID")
-        # timout between jobs in seconds, but should be a full divider of 60 (e.g. 2 & 5 are ok, but 7 is not)
-        self.write(4, "discord", "TIMEOUT_BETWEEN_JOBS")
-        # hanged job timeout in seconds, but has to represent full minutes, otherwise it will be rounded down
-        self.write(300, "discord", "HANGED_JOB_TIMEOUT")
-        # concurrent jobs number has to stay way below maximum to avoid captcha checks, halts, and hangs
-        self.write(5, "discord", "CONCURRENT_JOBS_LIMIT")
+        self.write("https://discord.com/api/v10/interactions", Settings.discord, Settings.api_url)
+        self.write(936929561302675456, Settings.discord, Settings.mj_app_id)
+        self.write(4, Settings.jobmanager, Settings.timeout_between_jobs)  # timout between jobs in seconds, but should be a full divider of 60 (e.g. 2 & 5 are ok, but 7 is not)
+        self.write(300, Settings.jobmanager, Settings.hanged_job_timeout)  # hanged job timeout in seconds, but has to represent full minutes, otherwise it will be rounded down
+        self.write(5, Settings.jobmanager, Settings.concurrent_jobs_limit)  # concurrent jobs number has to stay way below maximum to avoid captcha checks, halts, and hangs
 
 
 config = Settings()
-# config.write('directory', '/new/dir/path')
-# print(config.read('directory'))  # '/new/dir/path'
-# config.delete('directory')
-# print(config.read('directory'))  # None
 
-# location of settings.json:
-# Windows: On Windows, appdirs uses the APPDATA environment variable.
-# This typically maps to a path like C:\Users\<Username>\AppData\Roaming\<Appname>.
-
-# macOS: On macOS, appdirs uses the ~/Library/Application Support/<Appname> directory.
-
-# Linux: On Linux, appdirs follows the XDG Base Directory Specification.
-# The user-specific config is typically stored in ~/.config/<Appname>.
