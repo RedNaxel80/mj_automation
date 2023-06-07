@@ -10,6 +10,7 @@ import config
 import mj_commands
 from datetime import datetime
 import re
+import tempfile
 
 
 # load_dotenv()
@@ -166,7 +167,7 @@ class MjAutomator:
             if response.status_code == 200:
 
                 # Define the input and output folder paths
-                input_folder = "temp"
+                input_folder = tempfile.gettempdir()
                 output_folder = config.DOWNLOAD_FOLDER
 
                 # Check if the output folder exists, and create it if necessary
@@ -178,7 +179,7 @@ class MjAutomator:
 
                 with open(f"{self.directory}/{input_folder}/{filename}", "wb") as f:
                     f.write(response.content)
-                # print(f"Image downloaded: {filename}")
+                    self.main.logger.log(f"Image downloaded: {filename}")
 
                 input_file = os.path.join(input_folder, filename)
                 if config.UPSCALE_PREFIX not in filename and config.SPLIT_ORIGINAL:
