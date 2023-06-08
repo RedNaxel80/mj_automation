@@ -3,7 +3,8 @@ import wx.xrc
 import os
 import subprocess
 import platform
-import config
+# import config
+from settings import Settings
 import sys
 
 
@@ -13,8 +14,9 @@ import sys
 class MainWindow(wx.Frame):
     def __init__(self, parent, connector):
         self.connector = connector
+        self.settings = self.connector.bot.settings
         self.prompts_file_name = ""  # this is the path to the file to be processed
-        self.download_path = config.DOWNLOAD_FOLDER
+        self.download_path = self.settings.read(Settings.download_folder)
 
         wx.Frame.__init__(self, parent, id=wx.ID_ANY, title=u"Mj automator", pos=wx.DefaultPosition,
                           size=wx.Size(500, 430), style=wx.DEFAULT_FRAME_STYLE | wx.TAB_TRAVERSAL,
@@ -95,7 +97,7 @@ class MainWindow(wx.Frame):
 
         bSizer4.Add(self.label_download_location, 0, wx.ALL, 5)
 
-        self.input_download_location = wx.TextCtrl(self, wx.ID_ANY, u"/Volumes/Data/Dropbox/midjourney/test",
+        self.input_download_location = wx.TextCtrl(self, wx.ID_ANY, self.download_path,
                                                    wx.DefaultPosition, wx.DefaultSize, 0)
         self.input_download_location.Enable(False)
 
@@ -257,8 +259,14 @@ class MainWindow(wx.Frame):
         dialog = wx.DirDialog(None, "Choose downloads folder:", defaultPath=self.download_path,
                               style=wx.DD_DEFAULT_STYLE | wx.DD_NEW_DIR_BUTTON)
         if dialog.ShowModal() == wx.ID_OK:
-            self.input_download_location.SetValue(dialog.GetPath())
+            download_path = dialog.GetPath()
             # send this to settings manager to change actual folder
+            print(f"changing the download folder to {dialog.GetPath()}")
+            self.settings.write(Settings.download_folder, dialog.GetPath())
+            # change value in the ui from settings directly
+            # self.settings.read(Settings.download_folder)
+            self.download_path = self.settings.read(Settings.download_folder)
+            self.input_download_location.SetValue(self.download_path)
         dialog.Destroy()
 
 
