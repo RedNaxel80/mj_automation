@@ -2,15 +2,17 @@ import asyncio
 import discord
 from discord.ext import commands
 from discord.errors import DiscordServerError
-from dotenv import load_dotenv
+# from dotenv import load_dotenv
 import os
 import requests
 from PIL import Image
-import config
+
+# import config
 import mj_commands
 from datetime import datetime
 import re
 import tempfile
+from settings import Settings
 
 
 # load_dotenv()
@@ -26,7 +28,9 @@ class MjAutomator:
         FLUSHING = "flushing"
 
     def __init__(self, auto_run=False):
+        self.settings = Settings()
         self.status = self.Status.STARTING
+        self.token = self.settings.read(Settings.discord_bot_token)
         self.prompt_counter = 0
         self.auto_run = auto_run
         self.log_started = False
@@ -51,12 +55,12 @@ class MjAutomator:
         if self.auto_run:
             self.start_bot()
 
-    def start_bot(self, token=config.BOT_TOKEN):
-        self.client.run(token)
+    def start_bot(self):
+        self.client.run(self.token)
         # no further instructions will be executed as the discord bot initiation is blocking
 
-    async def start_bot_async(self, token=config.BOT_TOKEN):
-        await self.client.start(token)
+    async def start_bot_async(self):
+        await self.client.start(self.token)
         # no further instructions will be executed as the discord bot initiation is blocking
 
     async def stop_bot(self):
@@ -67,16 +71,21 @@ class MjAutomator:
         @self.client.event
         async def on_ready():
             # Get a reference to the guild (server) and channel
-            self.guild = self.client.get_guild(config.SERVER_ID)
-            self.channel = self.guild.get_channel(config.CHANNEL_ID)
+            self.guild = self.client.get_guild(self.settings.read(Settings.discord_server_id))  # (config.SERVER_ID)
+            self.channel = self.guild.get_channel(
+                self.settings.read(Settings.discord_channel_id))  # (config.CHANNEL_ID)
 
             print(f"Logged in as {self.client.user}")
             print("--run settings--")
             print(
-                f"Downloader: {'enabled' if self.downloader else 'disabled'}, prompter: {'enabled' if self.prompter else 'disabled'}")
-            print(f"Upscale: {config.ENABLE_UPSCALE}, upscale_max: {config.ENABLE_UPSCALE_MAX}")
+                f"Downloader: {'enabled' if self.downloader else 'disabled'}, "
+                f"prompter: {'enabled' if self.prompter else 'disabled'}")
+            print(f"Upscale: {self.settings.read(Settings.prompt_enable_upscale)}, "
+                  f"upscale_max: {self.settings.read(Settings.prompt_enable_upscale_max)}")
             print(
-                f"Download original: {config.DOWNLOAD_ORIGINAL}, download upscale: {config.DOWNLOAD_UPSCALE}, download upscale_max: {config.DOWNLOAD_UPSCALE_MAX}")
+                f"Download original: {self.settings.read(Settings.download_original)}, "
+                f"download upscale: {self.settings.read(Settings.download_upscale)}, "
+                f"download upscale_max: {self.settings.read(Settings.download_upscale_max)}")
             print("---------------")
 
             await self.channel.send("Bot ready!")
@@ -92,7 +101,8 @@ class MjAutomator:
             await self.logger.log(f"Message: {message.author.id}: {message.content}")
 
             # if the message is not from midjourney itself, ignore it
-            if message.author.id != config.MIDJOURNEY_ID or not message.attachments:  # or message.content == "" or not message.attachments:
+            if message.author.id != self.settings.read(
+                    Settings.discord_mj_app_id) or not message.attachments:  # or message.content == "" or not message.attachments:
                 return
 
             # process the message
@@ -144,21 +154,29 @@ class MjAutomator:
             self.directory = os.getcwd()
 
         async def download_process(self, message):
-            if not config.ENABLE_DOWNLOAD:
+            if not self.main.settings.read(Settings.download_enabled):
                 return
 
+            # bulk read all needed values from settings
+            download_upscale_prefix, download_upscale_max_prefix, prompt_upscale_tags, \
+                prompt_upscale_max_tag, download_allowed_extensions, download_original, \
+                download_upscale, download_upscale_max = self.main.settings.multi_read(
+                    Settings.download_upscale_prefix, Settings.download_upscale_max_prefix, Settings.prompt_upscale_tags,
+                    Settings.prompt_upscale_max_tag, Settings.download_allowed_extensions, Settings.download_original,
+                    Settings.download_upscale, Settings.download_upscale_max)
+
             # different mj versions have different message formats, so we need to check for a list here
-            file_prefix = config.UPSCALE_PREFIX if any(
-                s in message.content.lower() for s in config.UPSCALE_TAGS) else ''
+            file_prefix = download_upscale_prefix if any(
+                s in message.content.lower() for s in prompt_upscale_tags) else ''
             # new condition for upscale max
-            file_prefix = config.UPSCALE_MAX_PREFIX if config.UPSCALE_MAX_TAG in message.content.lower() else file_prefix
+            file_prefix = download_upscale_max_prefix if prompt_upscale_max_tag in message.content.lower() else file_prefix
 
             # we need to check which situation we're in - original image, upscale, or upscale max
-            if (file_prefix == config.UPSCALE_PREFIX and config.DOWNLOAD_UPSCALE) or \
-                    (file_prefix == config.UPSCALE_MAX_PREFIX and config.DOWNLOAD_UPSCALE_MAX) or \
-                    (not file_prefix and config.DOWNLOAD_ORIGINAL):
+            if (file_prefix == download_upscale_prefix and download_upscale) or \
+                    (file_prefix == download_upscale_max_prefix and download_upscale_max) or \
+                    (not file_prefix and download_original):
                 for attachment in message.attachments:
-                    if attachment.filename.lower().endswith(config.ALLOWED_EXTENSIONS):
+                    if attachment.filename.lower().endswith(tuple(download_allowed_extensions)):
                         await self.download_image(attachment.url,
                                                   f"{file_prefix}{'_'.join(attachment.filename.split('_')[1:])}")
 
@@ -166,9 +184,18 @@ class MjAutomator:
             response = requests.get(url)
             if response.status_code == 200:
 
+                # bulk read all needed values
+                output_folder, download_upscale_prefix, \
+                    download_split_original, download_split_prefix, \
+                    download_folder_use_absolute_path = \
+                    self.main.settings.multi_read(Settings.download_folder, Settings.download_upscale_prefix,
+                                                  Settings.download_split_original, Settings.download_split_prefix,
+                                                  Settings.download_folder_use_absolute_path)
+
                 # Define the input and output folder paths
                 input_folder = tempfile.gettempdir()
-                output_folder = config.DOWNLOAD_FOLDER
+                input_file = os.path.join(input_folder, filename)
+                # output_folder = self.main.settings.read(Settings.download_folder)  # this gets read as bulk
 
                 # Check if the output folder exists, and create it if necessary
                 if not os.path.exists(output_folder):
@@ -177,30 +204,29 @@ class MjAutomator:
                 if not os.path.exists(input_folder):
                     os.makedirs(input_folder)
 
-                with open(f"{self.directory}/{input_folder}/{filename}", "wb") as f:
+                with open(f"{input_file}", "wb") as f:
                     f.write(response.content)
-                    self.main.logger.log(f"Image downloaded: {filename}")
+                    await self.main.logger.log(f"Image downloaded: {filename}")
 
-                input_file = os.path.join(input_folder, filename)
-                if config.UPSCALE_PREFIX not in filename and config.SPLIT_ORIGINAL:
+                if download_upscale_prefix not in filename and download_split_original:
                     file_prefix = os.path.splitext(filename)[0]
                     # Split the image
                     top_left, top_right, bottom_left, bottom_right = self.split_image(input_file)
                     # Save the output images with dynamic names in the output folder
-                    top_left.save(os.path.join(output_folder, config.SPLIT_PREFIX + file_prefix + "_top_left.jpg"))
-                    top_right.save(os.path.join(output_folder, config.SPLIT_PREFIX + file_prefix + "_top_right.jpg"))
+                    top_left.save(os.path.join(output_folder, download_split_prefix + file_prefix + "_top_left.jpg"))
+                    top_right.save(os.path.join(output_folder, download_split_prefix + file_prefix + "_top_right.jpg"))
                     bottom_left.save(
-                        os.path.join(output_folder, config.SPLIT_PREFIX + file_prefix + "_bottom_left.jpg"))
+                        os.path.join(output_folder, download_split_prefix + file_prefix + "_bottom_left.jpg"))
                     bottom_right.save(
-                        os.path.join(output_folder, config.SPLIT_PREFIX + file_prefix + "_bottom_right.jpg"))
+                        os.path.join(output_folder, download_split_prefix + file_prefix + "_bottom_right.jpg"))
                     # Delete the input file
-                    os.remove(f"{self.directory}/{input_folder}/{filename}")
+                    os.remove(f"{input_file}")
 
                 else:
-                    output_path = f"{self.directory}/" if not config.DOWNLOAD_ABSOLUTE_PATH else ""
+                    output_path = f"{self.directory}/" if not download_folder_use_absolute_path else ""
                     output_path += f"{output_folder}/{filename}"
 
-                    os.rename(f"{self.directory}/{input_folder}/{filename}", output_path)
+                    os.rename(f"{input_file}", output_path)
 
         def split_image(self, image_file):
             with Image.open(image_file) as im:
@@ -222,16 +248,19 @@ class MjAutomator:
             self.main = main
             self.client = self.main.client
             self.received_prompts = []
+            # bulk read needed values from settings
+            self.prompt_enabled, self.prompt_file, self.done_prompt_file = \
+                self.main.settings.multi_read(Settings.prompt_enabled, Settings.prompt_file, Settings.prompt_done_file)
 
         async def prompt_process(self):
-            if not config.ENABLE_PROMPTING:
+            if not self.prompt_enabled:
                 return
 
             # Get the prompts from the default file on the start
-            # await self.get_prompts_from_file()
+            # await self.get_prompts_from_file(self.prompt_file)
 
-        async def get_prompts_from_file(self, file=config.PROMPT_FILE):
-            if not config.ENABLE_PROMPTING:
+        async def get_prompts_from_file(self, file):
+            if not self.prompt_enabled:
                 return
 
             prompts = []
@@ -240,11 +269,11 @@ class MjAutomator:
                     prompts = [line for line in prompt_file if line.strip()]
 
                 # skip if no prompts in file
-                if len(prompts) != 0 and file == config.PROMPT_FILE:
+                if len(prompts) != 0 and file == self.prompt_file:
                     # Remove the prompts from the file if it's the default file
                     open(file, 'w').close()
                     # Copy the prompts to the done file (append)
-                    with open(config.DONE_PROMPT_FILE, 'a') as done_prompt_file:
+                    with open(self.done_prompt_file, 'a') as done_prompt_file:
                         done_prompt_file.write(''.join(prompts) + '\n')
 
                 # show message only if imported something
@@ -261,7 +290,7 @@ class MjAutomator:
                         self.main.job_manager.Job((self.main.prompter.send_prompt, prompt)))
 
         async def parse_multiple_prompts(self, multiline_prompts):
-            if not config.ENABLE_PROMPTING:
+            if not self.prompt_enabled:
                 return
 
             # Split the prompts by line (and eliminate empty)
@@ -271,7 +300,7 @@ class MjAutomator:
                 await self.main.job_manager.add_job(self.main.job_manager.Job((self.main.prompter.send_prompt, prompt)))
 
         async def send_prompt(self, prompt):
-            if not config.ENABLE_PROMPTING:
+            if not self.prompt_enabled:
                 return
 
             # Check if there are any messages in the channel
@@ -301,9 +330,13 @@ class MjAutomator:
         def __init__(self, main):
             self.main = main
             self.client = self.main.client
+            self.prompt_enable_upscale, self.prompt_enable_upscale_max, self.discord_mj_app_id, \
+                self.prompt_upscale_tags, self.prompt_upscale_max_tag = self.main.settings.multi_read(
+                    Settings.prompt_enable_upscale, Settings.prompt_enable_upscale_max, Settings.discord_mj_app_id,
+                    Settings.prompt_upscale_tags, Settings.prompt_upscale_max_tag)
 
         async def upscale_process(self, message):
-            if not config.ENABLE_UPSCALE and not config.ENABLE_UPSCALE_MAX:
+            if not self.prompt_enable_upscale and not self.prompt_enable_upscale_max:
                 return
 
             # if the message is a reply, get the author id from
@@ -313,7 +346,7 @@ class MjAutomator:
             #     # This message is a reply.
             #     original_message = await message.channel.fetch_message(message.reference.message_id)
 
-            if message.author.id != config.MIDJOURNEY_ID:  # or original_message.author.id != config.MIDJOURNEY_ID:
+            if message.author.id != self.discord_mj_app_id:  # or original_message.author.id != config.MIDJOURNEY_ID:
                 return
 
             try:
@@ -325,13 +358,13 @@ class MjAutomator:
                 lowered_message_content = message.content.lower()
 
                 # skip already max upscaled images
-                if config.UPSCALE_MAX_TAG in lowered_message_content:
+                if self.prompt_upscale_max_tag in lowered_message_content:
                     return
 
                 # if already upscaled one
-                if any(s in lowered_message_content for s in config.UPSCALE_TAGS):
+                if any(s in lowered_message_content for s in self.prompt_upscale_tags):
                     # allow for max upscale if it's enabled in config (only works for v4)
-                    if config.ENABLE_UPSCALE_MAX:
+                    if self.prompt_enable_upscale_max:
                         await self.main.upscaler.max_upscale(ctx, message_id, message_hash, lowered_message_content)
                 else:
                     # if not already upscaled, upscale default
@@ -377,6 +410,10 @@ class MjAutomator:
             self.flush_check_counter = 0  # how many times the flush check was performed (runs every minute)
             self.completed_jobs = 0  # number of completed jobs during the uptime
             self.queued_jobs = 0  # number of queued jobs during the uptime
+            self.concurrent_jobs_limit, self.timeout_between_jobs, self.hanged_job_timeout = \
+                self.main.settings.multi_read(Settings.jobmanager_concurrent_jobs_limit,
+                                              Settings.jobmanager_timeout_between_jobs,
+                                              Settings.jobmanager_hanged_job_timeout)
 
         async def add_job(self, job):
             await self.queue.put(job)
@@ -404,10 +441,10 @@ class MjAutomator:
             while True:
                 await self.report()
                 # if the running jobs queue is full, wait and try again
-                if self.running_jobs >= config.CONCURRENT_JOBS_LIMIT:
+                if self.running_jobs >= self.concurrent_jobs_limit:
                     # but if the bot seems to be hanged, flush jobs
                     # this only takes care of the full capacity case, let's make it more broad
-                    if self.flush_counter >= config.HANGED_JOB_TIMEOUT and self.queue.qsize() == self.prev_num_que_jobs:
+                    if self.flush_counter >= self.hanged_job_timeout and self.queue.qsize() == self.prev_num_que_jobs:
                         await self.flush()
                         continue
 
@@ -435,7 +472,7 @@ class MjAutomator:
                     await asyncio.sleep(60)  # if we're having some errors, maybe a simple timeout will help
                 finally:
                     self.queue.task_done()
-                    await asyncio.sleep(config.TIMEOUT_BETWEEN_JOBS)
+                    await asyncio.sleep(self.timeout_between_jobs)
 
         async def check_for_hang(self):
             if self.queue.qsize() == 0 and self.running_jobs == 0:  # if both lists are empty, don't bother
@@ -445,7 +482,7 @@ class MjAutomator:
                 self.prev_num_que_jobs = self.queue.qsize()
                 self.prev_num_run_jobs = self.running_jobs
 
-            if self.flush_check_counter == config.HANGED_JOB_TIMEOUT / 60:  # if we've reached the timeout
+            if self.flush_check_counter == self.hanged_job_timeout / 60:  # if we've reached the timeout
                 # if the values haven't changed, flush
                 if self.prev_num_que_jobs == self.queue.qsize() and self.prev_num_run_jobs == self.running_jobs:
                     print("default flush")
@@ -487,14 +524,16 @@ class MjAutomator:
         def __init__(self, main):
             self.main = main
             self.client = self.main.client
+            self.log_file, self.log_enabled, self.log_persistent = \
+                self.main.settings.multi_read(Settings.logging_file, Settings.logging_enabled, Settings.logging_persistent)
 
             # flush the log file if it's not persistent
-            if os.path.exists(config.LOG_FILE) and not config.LOG_PERSISTENT:
-                os.remove(config.LOG_FILE)
+            if os.path.exists(self.log_file) and not self.log_persistent:
+                os.remove(self.log_file)
 
         async def log(self, message):
-            if not config.LOG_ENABLED:
+            if not self.log_enabled:
                 return
 
-            with open(config.LOG_FILE, 'a') as log_file:
+            with open(self.log_file, 'a') as log_file:
                 log_file.write(f"{datetime.now()}: {message}\n")
