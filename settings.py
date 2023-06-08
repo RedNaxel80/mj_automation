@@ -64,6 +64,7 @@ class Settings:
         if not os.path.isfile(self.filename):
             self.create()
         if not self.read(Settings.config_initialized):
+            print("inserting default settings")
             self.insert_defaults()
 
     def create(self):
@@ -75,7 +76,7 @@ class Settings:
             data = json.load(f)
         return data.get(key)
 
-    def write(self, value, key):
+    def write(self, key, value):
         with open(self.filename, 'r') as f:
             data = json.load(f)
         data[key] = value
