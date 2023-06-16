@@ -4,8 +4,11 @@ import config
 
 
 class MainWindow(QMainWindow):
-    def __init__(self, parent=None, connector=None):
-        super().__init__(parent)
+    def __init__(self, connector, parent=None):
+        super(MainWindow, self).__init__(parent)
+        # super().__init__(parent)
+        self.connector = connector
+        print(connector)
         self.connector = connector
         self.prompts_file_name = ""
         self.download_path = config.DOWNLOAD_FOLDER
