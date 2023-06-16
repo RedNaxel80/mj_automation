@@ -211,6 +211,7 @@ class MjAutomator:
                 if download_upscale_prefix not in filename and download_split_original:
                     file_prefix = os.path.splitext(filename)[0]
                     # Split the image
+                    await self.main.logger.log(f"Splitting: {filename}")
                     top_left, top_right, bottom_left, bottom_right = self.split_image(input_file)
                     # Save the output images with dynamic names in the output folder
                     top_left.save(os.path.join(output_folder, download_split_prefix + file_prefix + "_top_left.jpg"))
