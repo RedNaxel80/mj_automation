@@ -64,7 +64,8 @@ class MjAutomator:
         # no further instructions will be executed as the discord bot initiation is blocking
 
     async def stop_bot(self):
-        print("\n\nStopping bot...")
+
+        await self.logger.log("Stopping bot...")
         await self.client.close()
 
     def discord_setup(self):
@@ -75,18 +76,18 @@ class MjAutomator:
             self.channel = self.guild.get_channel(
                 self.settings.read(Settings.discord_channel_id))  # (config.CHANNEL_ID)
 
-            print(f"Logged in as {self.client.user}")
-            print("--run settings--")
-            print(
+            await self.logger.log(f"Logged in as {self.client.user}")
+            await self.logger.log("--run settings--")
+            await self.logger.log(
                 f"Downloader: {'enabled' if self.downloader else 'disabled'}, "
                 f"prompter: {'enabled' if self.prompter else 'disabled'}")
-            print(f"Upscale: {self.settings.read(Settings.prompt_enable_upscale)}, "
+            await self.logger.log(f"Upscale: {self.settings.read(Settings.prompt_enable_upscale)}, "
                   f"upscale_max: {self.settings.read(Settings.prompt_enable_upscale_max)}")
-            print(
+            await self.logger.log(
                 f"Download original: {self.settings.read(Settings.download_original)}, "
                 f"download upscale: {self.settings.read(Settings.download_upscale)}, "
                 f"download upscale_max: {self.settings.read(Settings.download_upscale_max)}")
-            print("---------------")
+            await self.logger.log("---------------")
 
             await self.channel.send("Bot ready!")
             asyncio.create_task(self.job_manager.process_jobs())
@@ -112,11 +113,11 @@ class MjAutomator:
 
         @self.client.command()
         async def mj_imagine(ctx, *, prompt: str):
-            response = mj_commands.pass_prompt_to_self_bot(prompt)
+            response = mj_commands.pass_prompt_to_self_bot(self.settings, prompt)
 
             if response.status_code >= 400:
-                print(response.text)
-                print(response.status_code)
+                await self.logger.log(response.text)
+                await self.logger.log(response.status_code)
                 await ctx.channel.send("Imagine: Request has failed; please try later")
 
         @self.client.command()
@@ -125,7 +126,7 @@ class MjAutomator:
                 await ctx.send('Upscale: Could not find the correct message to reply to')
                 return
 
-            response = mj_commands.upscale(index, message_id, message_hash)
+            response = mj_commands.upscale(self.settings, index, message_id, message_hash)
 
             if response.status_code >= 400:
                 await self.logger.log(
@@ -139,7 +140,7 @@ class MjAutomator:
                 await ctx.send('UpscaleMax: Could not find the correct message to reply to')
                 return
 
-            response = mj_commands.upscale_max(message_id, message_hash)
+            response = mj_commands.upscale_max(self.settings, message_id, message_hash)
 
             if response.status_code >= 400:
                 await ctx.send("UpscaleMax: Request has failed; please try later")
@@ -177,8 +178,7 @@ class MjAutomator:
                     (not file_prefix and download_original):
                 for attachment in message.attachments:
                     if attachment.filename.lower().endswith(tuple(download_allowed_extensions)):
-                        await self.download_image(attachment.url,
-                                                  f"{file_prefix}{'_'.join(attachment.filename.split('_')[1:])}")
+                        await self.download_image(attachment.url, f"{file_prefix}{attachment.filename.replace(self.main.settings.read(Settings.discord_username) + '_', '', 1)}")
 
         async def download_image(self, url, filename):
             response = requests.get(url)
@@ -206,7 +206,7 @@ class MjAutomator:
 
                 with open(f"{input_file}", "wb") as f:
                     f.write(response.content)
-                    await self.main.logger.log(f"Image downloaded: {filename}")
+                    await self.main.logger.log(f"Downloading: {filename}")
 
                 if download_upscale_prefix not in filename and download_split_original:
                     file_prefix = os.path.splitext(filename)[0]
@@ -278,10 +278,10 @@ class MjAutomator:
 
                 # show message only if imported something
                 if prompts:
-                    print(f'Prompt batch import finished: {len(prompts)} prompts queued.')
+                    await self.main.logger.log(f'Prompt batch import finished: {len(prompts)} prompts queued.')
 
             except FileNotFoundError:
-                print("Error on reading the prompt file.")
+                await self.main.logger.log("Error on reading the prompt file.")
 
             # add all non-empty prompts to queue
             for prompt in prompts:
@@ -309,13 +309,13 @@ class MjAutomator:
                 try:
                     message = await self.main.channel.fetch_message(self.main.channel.last_message_id)
                 except discord.NotFound:
-                    print("The last message in the channel was deleted.")
+                    await self.main.logger.log("The last message in the channel was deleted.")
                     await self.main.channel.send("Context message for the bot's prompts - do not delete")
                     await asyncio.sleep(5)
                     await self.send_prompt(prompt)
                     return
                 except discord.Forbidden:
-                    print("The bot doesn't have permission to read message history in the channel.")
+                    await self.main.logger.log("The bot doesn't have permission to read message history in the channel.")
                     return
 
                 # Create the context
@@ -324,7 +324,7 @@ class MjAutomator:
                 # Invoke the command
                 await self.main.mj_imagine(ctx, prompt=prompt)
             else:
-                print("There are no messages in the channel.")
+                await self.main.logger.log("There are no messages in the channel.")
 
     class Upscaler:
         def __init__(self, main):
@@ -371,7 +371,7 @@ class MjAutomator:
                     await self.main.upscaler.default_upscale(ctx, message_id, message_hash, lowered_message_content)
 
             except Exception as e:
-                print(f"An error occurred: {e}")
+                await self.main.logger.log(f"An error occurred: {e}")
 
         async def default_upscale(self, ctx, message_id, message_hash, lowered_message_content=""):
             for i in range(1, 5):
@@ -426,17 +426,16 @@ class MjAutomator:
             self.running_jobs += 1
 
         async def report(self):
-            self.queued_jobs = self.queue.qsize()
-            print(
-                f"\rJobs in queue: {self.get_queue_count()}, running: {self.running_jobs}, completed: {self.completed_jobs}",
-                end="")
+            # self.queued_jobs = self.queue.qsize()
+            # await self.main.logger.log(f"Jobs in queue: {self.get_queue_count()}, running: {self.running_jobs}, completed: {self.completed_jobs}")
+            pass
 
         async def process_jobs(self):
             self.flush_counter = 0  # how much time (seconds) passed - check in the maxed capacity case
             self.flush_counter_default = 0  # as above - check in the main loop
 
             await asyncio.sleep(3)  # do we really need that here?
-            print("Starting job processing...")
+            await self.main.logger.log("Starting job processing...")
             self.main.status = self.main.Status.READY
             while True:
                 await self.report()
@@ -462,13 +461,23 @@ class MjAutomator:
                 job = await self.queue.get()  # this waits for a job if the queue is empty
 
                 try:
-                    await self.main.logger.log(
-                        f"-------: job #{self.job_number}, in queue: {self.get_queue_count()}: {job}")
+                    f_name = job.job_function.__name__
+                    if "send_prompt" in f_name:
+                        command = "/imagine"
+                    elif "max_upscale" in f_name:
+                        command = "/upbeta"
+                    elif "default_upscale" in f_name:
+                        command = "/upscale"
+                    else:
+                        command = "unknown_command"
+                    await self.main.logger.log(f"-------: queue: {self.get_queue_count()}, job #{self.job_number}: "
+                                               f"{command} {job.kwargs}")
                     self.job_number += 1
                     await self.do_job(job)
                     self.main.status = self.main.Status.PROCESSING  # set the status for the ui
                 except DiscordServerError as e:
-                    print(f"DiscordServerError: {e}")
+                    error = f"DiscordServerError: {e}"
+                    await self.main.logger.log(error)
                     await asyncio.sleep(60)  # if we're having some errors, maybe a simple timeout will help
                 finally:
                     self.queue.task_done()
@@ -485,7 +494,7 @@ class MjAutomator:
             if self.flush_check_counter == self.hanged_job_timeout / 60:  # if we've reached the timeout
                 # if the values haven't changed, flush
                 if self.prev_num_que_jobs == self.queue.qsize() and self.prev_num_run_jobs == self.running_jobs:
-                    print("default flush")
+                    self.main.logger.log("default flush")
                     await self.flush()
                     self.flush_check_counter = 0
                     return
@@ -495,7 +504,7 @@ class MjAutomator:
         async def flush(self):
             # in the end this needs to be done manually from the UI with the alert to the user to check discord
             # for the captcha and only after catcha to proceed with the flush
-            print(f"\nFlushing queue... Removed {self.running_jobs} jobs.")
+            self.main.logger.log(f"\nFlushing queue... Removed {self.running_jobs} jobs.")
             self.main.status = self.main.Status.FLUSHING
             self.running_jobs = 0
             self.flush_counter = 0
@@ -535,5 +544,7 @@ class MjAutomator:
             if not self.log_enabled:
                 return
 
+            formatted_message = f"{datetime.now()}: {message}"
+            print(formatted_message)
             with open(self.log_file, 'a') as log_file:
-                log_file.write(f"{datetime.now()}: {message}\n")
+                log_file.write(formatted_message + "\n")
