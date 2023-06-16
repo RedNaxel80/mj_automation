@@ -33,5 +33,4 @@ class UI:
 		ui_wx.start(connector)
 
 	def start_flask(self, connector):
-		pass
-		# ui_flask.start(connector)
+		ui_flask.start(connector)
