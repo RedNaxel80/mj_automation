@@ -16,8 +16,12 @@ class Settings:
     discord_channel_id = "discord_channel_id"
     discord_bot_token = "discord_bot_token"
     discord_main_token = "discord_main_token"
+    discord_username = "discord_username"
     discord_api_url = "discord_api_url"
     discord_mj_app_id = "discord_mj_app_id"
+    discord_mj_app_version = "discord_mj_app_version"
+    discord_mj_command_imagine = "discord_mj_command_imagine"
+    discord_mj_command_blend = "discord_mj_command_blend"
 
     download_enabled = "download_enabled"
     download_folder = "download_folder"
@@ -111,6 +115,7 @@ class Settings:
         self.write(Settings.discord_channel_id, None)  # id of the channel the bot is supposed to *run prompts on* (the downloader will work for any channel it is a member of !!!)
         self.write(Settings.discord_bot_token, None)  # token for the bot
         self.write(Settings.discord_main_token, None)  # token for your discord account that has the midjourney paid subscription
+        self.write(Settings.discord_username, None)  # username (not display name!) for removing it from the downloaded filenames
 
         # downloader settings
         self.write(Settings.download_enabled, True)  # should the downloads be enabled?
@@ -142,6 +147,9 @@ class Settings:
         # Technical settings - DO NOT EDIT THOSE:
         self.write(Settings.discord_api_url, "https://discord.com/api/v10/interactions")
         self.write(Settings.discord_mj_app_id, 936929561302675456)
+        self.write(Settings.discord_mj_app_version, 1118961510123847772)
+        self.write(Settings.discord_mj_command_imagine, 938956540159881230)
+        self.write(Settings.discord_mj_command_blend, 1062880104792997970)
         self.write(Settings.jobmanager_timeout_between_jobs, 4)  # timout between jobs in seconds, but should be a full divider of 60 (e.g. 2 & 5 are ok, but 7 is not)
         self.write(Settings.jobmanager_hanged_job_timeout, 300)  # hanged job timeout in seconds, but has to represent full minutes, otherwise it will be rounded down
         self.write(Settings.jobmanager_concurrent_jobs_limit, 5)  # concurrent jobs number has to stay way below maximum to avoid captcha checks, halts, and hangs
