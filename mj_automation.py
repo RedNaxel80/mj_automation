@@ -542,10 +542,9 @@ class MjAutomator:
                 os.remove(self.log_file)
 
         async def log(self, message):
-            if not self.log_enabled:
-                return
-
             formatted_message = f"{datetime.now()}: {message}"
-            print(formatted_message)
+            if self.log_enabled:
+                print(formatted_message)
+
             with open(self.log_file, 'a') as log_file:
                 log_file.write(formatted_message + "\n")
