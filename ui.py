@@ -9,7 +9,7 @@ class UIType:
 	FLASK = 2
 
 
-UI_TYPE = UIType.WX
+UI_TYPE = UIType.FLASK
 
 
 class UI:
