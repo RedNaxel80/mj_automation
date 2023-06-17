@@ -6,3 +6,4 @@ APScheduler~=3.10.1
 discord~=2.2.3
 Pillow~=9.5.0
 appdirs~=1.4.4
+pyinstaller~=5.12.0
