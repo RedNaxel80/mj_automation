@@ -3,9 +3,7 @@ import wx.xrc
 import os
 import subprocess
 import platform
-# import config
 from settings import Settings
-import sys
 
 
 # -*- coding: utf-8 -*-
