@@ -1,4 +1,3 @@
-import config
 import requests
 from settings import Settings
 
