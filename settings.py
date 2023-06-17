@@ -54,7 +54,7 @@ class Settings:
     def __init__(self, appname="Mj-auto", filename="settings.json"):
         # location of settings.json:
         # Windows: On Windows, appdirs uses the APPDATA environment variable.
-        # This typically maps to a path like C:\Users\<Username>\AppData\Roaming\<Appname>.
+        # This typically maps to a path like C:\Users\<Username>\AppData\Local\<Appname>. (...\Local\ or ...\Roaming\)
 
         # macOS: On macOS, appdirs uses the ~/Library/Application Support/<Appname> directory.
 
