@@ -64,8 +64,8 @@ class MjAutomator:
         # no further instructions will be executed as the discord bot initiation is blocking
 
     async def stop_bot(self):
-
         await self.logger.log("Stopping bot...")
+        self.status = self.Status.STOPPED
         await self.client.close()
 
     def discord_setup(self):
@@ -438,8 +438,9 @@ class MjAutomator:
             await asyncio.sleep(3)  # do we really need that here?
             await self.main.logger.log("Starting job processing...")
             self.main.status = self.main.Status.READY
-            while True:
-                await self.report()
+            while self.main.status != self.main.Status.STOPPED:
+                await self.report()  # report method is currently empty as it would need to read a lot of stuff from main process, so it's easier to do it directly there
+
                 # if the running jobs queue is full, wait and try again
                 if self.running_jobs >= self.concurrent_jobs_limit:
                     # but if the bot seems to be hanged, flush jobs
@@ -458,8 +459,11 @@ class MjAutomator:
                     if self.flush_counter_default == 60:  # every 60 seconds check if we need to flush
                         self.flush_counter_default = 0
                         await self.check_for_hang()
-
-                job = await self.queue.get()  # this waits for a job if the queue is empty
+                try:
+                    job = await asyncio.wait_for(self.queue.get(), timeout=1)  # this waits 1s for a job if the queue is empty
+                # this restarts the loop, so it can read the status.STOPPED if set, and exit the thread nicely
+                except asyncio.TimeoutError:
+                    continue
 
                 try:
                     f_name = job.job_function.__name__
