@@ -71,6 +71,18 @@ class Settings:
             print("inserting default settings")
             self.insert_defaults()
 
+    def are_settings_completed(self):
+        # check if the user needs to configure the app before first use
+        check_for = [Settings.discord_server_id,
+                     Settings.discord_channel_id,
+                     Settings.discord_bot_token,
+                     Settings.discord_main_token]
+
+        if any(self.read(s) for s in check_for) is None:
+            return False
+        else:
+            return True
+
     def create(self):
         with open(self.filename, 'w') as f:
             json.dump({}, f)
