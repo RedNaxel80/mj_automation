@@ -69,63 +69,51 @@ def start(connector):
 '''
         return content
 
-    @app.route("/api/send-prompt", methods=["POST", "GET"])
+    @app.route("/api/send-prompt", methods=["POST"])
     def send_prompt():
-        print(request)
-        # data = request.get_json()
-        # prompt = data["prompt"]
-        prompt = request.args.get('prompt')
+        data = request.get_json()
+        prompt = data["prompt"]
         if prompt:
             connector.send_prompt_to_bot(prompt)
         return f"Prompt: {prompt}."
 
-    @app.route("/api/send-filepath", methods=["POST", "GET"])
+    @app.route("/api/send-filepath", methods=["POST"])
     def send_filepath():
-        print(request)
-        # data = request.get_json()
-        # file_path = data["filepath"]
-        filepath = request.args.get('filepath')
+        data = request.get_json()
+        filepath = data["filepath"]
         if filepath:
             connector.send_file_to_bot(filepath)
         return f"Filepath: {filepath}."
 
-    @app.route("/api/start-bot", methods=["POST", "GET"])
+    @app.route("/api/start-bot", methods=["POST"])
     def start_bot():
-        print(request)
         return connector.start_bot()
 
-    @app.route("/api/stop-bot", methods=["POST", "GET"])
+    @app.route("/api/stop-bot", methods=["POST"])
     def stop_bot():
-        print(request)
         return connector.stop_bot()
 
-    @app.route("/api/status", methods=["POST", "GET"])
+    @app.route("/api/status", methods=["POST"])
     def get_status():
-        print(request)
         return connector.get_status()
 
-    @app.route("/api/config-done", methods=["POST", "GET"])
+    @app.route("/api/config-done", methods=["POST"])
     def are_settings_completed():
-        print(request)
         return connector.are_settings_completed()
 
-    @app.route("/api/set-download-dir", methods=["POST", "GET"])
+    @app.route("/api/set-download-dir", methods=["POST"])
     def set_download_dir():
-        print(request)
-        # data = request.get_json()
-        # path = data["path"]
-        path = request.args.get('path')
+        data = request.get_json()
+        path = data["path"]
         return connector.send_file_to_bot(path)
 
-    @app.route("/api/get-download-dir", methods=["POST", "GET"])
+    @app.route("/api/get-download-dir", methods=["POST"])
     def get_download_dir():
-        print(request)
         return connector.get_download_dir()
 
-    @app.route("/api/check", methods=["POST", "GET"])
+    @app.route("/api/check", methods=["POST"])
     def check():
-        connector.check_bot()
-        return ""
+        return connector.check_bot()
 
     # start the server (must be at the end)
     start_server(app, host, port, port_max)

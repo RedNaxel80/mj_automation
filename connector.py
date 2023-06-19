@@ -71,4 +71,10 @@ class Connector:
         settings = Settings()
         return settings.read(Settings.download_folder)
 
+    def check_bot(self):
+        if self.bot.running:
+            return "ok"
+        else:
+            return ""
+
 
