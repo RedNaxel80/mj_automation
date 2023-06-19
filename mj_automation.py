@@ -37,6 +37,7 @@ class MjAutomator:
         # self.ready = False
         self.ready = asyncio.Event()
         self.ready_status = False
+        self.running = False
 
         self.intents = discord.Intents.all()
         self.intents.message_content = True
@@ -56,6 +57,7 @@ class MjAutomator:
             self.start_bot()
 
     def start_bot(self):
+        self.running = True
         self.client.run(self.token)
         # no further instructions will be executed as the discord bot initiation is blocking
 
@@ -64,6 +66,7 @@ class MjAutomator:
         # no further instructions will be executed as the discord bot initiation is blocking
 
     async def stop_bot(self):
+        self.running = False
         await self.logger.log("Stopping bot...")
         self.status = self.Status.STOPPED
         await self.client.close()
@@ -511,6 +514,7 @@ class MjAutomator:
             # for the captcha and only after catcha to proceed with the flush
             self.main.logger.log(f"\nFlushing queue... Removed {self.running_jobs} jobs.")
             self.main.status = self.main.Status.FLUSHING
+            self.completed_jobs += self.running_jobs  # adding stuck jobs to done
             self.running_jobs = 0
             self.flush_counter = 0
             self.flush_counter_default = 0
