@@ -7,14 +7,15 @@ from settings import Settings
 
 
 class Connector:
-    def __init__(self):
+    def __init__(self, port=5000):
+        self.port = port
         self.loop = None
         self.bot = None
         self.thread = None
-        self.ui = UI(self)
+        self.ui = UI(self, self.port)
 
     def init_ui(self):
-        self.ui = UI(self)
+        self.ui = UI(self, self.port)
 
     def init_bot(self):
         self.bot = MjAutomator(auto_run=False) or None

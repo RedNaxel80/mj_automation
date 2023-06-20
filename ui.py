@@ -13,7 +13,8 @@ UI_TYPE = UIType.FLASK
 
 
 class UI:
-	def __init__(self, connector):
+	def __init__(self, connector, port=5000):
+		self.port = port
 		self.connector = connector
 		self.ui = UI_TYPE
 		self.start(self.connector)
@@ -24,7 +25,7 @@ class UI:
 		elif self.ui == UIType.WX:
 			self.start_wx(connector)
 		elif self.ui == UIType.FLASK:
-			self.start_flask(connector)
+			self.start_flask(connector, self.port)
 
 	def start_qt(self, connector):
 		ui_qt.start(connector)
@@ -32,5 +33,5 @@ class UI:
 	def start_wx(self, connector):
 		ui_wx.start(connector)
 
-	def start_flask(self, connector):
-		ui_flask.start(connector)
+	def start_flask(self, connector, port):
+		ui_flask.start(connector, port)
