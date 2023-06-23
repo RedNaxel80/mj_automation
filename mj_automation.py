@@ -438,7 +438,7 @@ class MjAutomator:
             self.flush_counter = 0  # how much time (seconds) passed - check in the maxed capacity case
             self.flush_counter_default = 0  # as above - check in the main loop
 
-            await asyncio.sleep(3)  # do we really need that here?
+            # await asyncio.sleep(3)  # do we really need that here?
             await self.main.logger.log("Starting job processing...")
             self.main.status = self.main.Status.READY
             while self.main.status != self.main.Status.STOPPED:
