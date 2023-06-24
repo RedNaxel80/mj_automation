@@ -3,8 +3,7 @@ import wx.xrc
 import os
 import subprocess
 import platform
-import config
-import sys
+from settings import Settings
 
 
 # -*- coding: utf-8 -*-
@@ -13,8 +12,9 @@ import sys
 class MainWindow(wx.Frame):
     def __init__(self, parent, connector):
         self.connector = connector
+        self.settings = self.connector.bot.settings
         self.prompts_file_name = ""  # this is the path to the file to be processed
-        self.download_path = config.DOWNLOAD_FOLDER
+        self.download_path = self.settings.read(Settings.download_folder)
 
         wx.Frame.__init__(self, parent, id=wx.ID_ANY, title=u"Mj automator", pos=wx.DefaultPosition,
                           size=wx.Size(500, 430), style=wx.DEFAULT_FRAME_STYLE | wx.TAB_TRAVERSAL,
@@ -33,10 +33,7 @@ class MainWindow(wx.Frame):
         bSizer1.Add(self.label_prompt_input, 0, wx.ALL, 5)
 
         self.input_prompt = wx.TextCtrl(self, wx.ID_ANY, u"prompt...", wx.DefaultPosition, wx.Size(-1, 100),
-                                        wx.TE_MULTILINE | wx.TE_PROCESS_ENTER | wx.TE_RICH2)
-        self.input_prompt.SetForegroundColour(wx.SystemSettings.GetColour(wx.SYS_COLOUR_WINDOWTEXT))
-        self.input_prompt.SetBackgroundColour(wx.SystemSettings.GetColour(wx.SYS_COLOUR_WINDOW))
-
+                                        wx.TE_MULTILINE | wx.TE_PROCESS_ENTER)
         bSizer1.Add(self.input_prompt, 0, wx.ALL | wx.EXPAND, 5)
 
         self.button_submit_prompt = wx.Button(self, wx.ID_ANY, u"Process", wx.DefaultPosition, wx.DefaultSize, 0)
@@ -44,7 +41,7 @@ class MainWindow(wx.Frame):
 
         bSizer1.Add(self.button_submit_prompt, 0, wx.ALL, 5)
 
-        self.separator = wx.StaticLine(self, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.LI_HORIZONTAL)
+        self.separator = wx.StaticLine(self, wx.ID_ANY, wx.DefaultPosition, wx.Size(-1, 10), wx.LI_HORIZONTAL)
         self.separator.SetMinSize(wx.Size(-1, 10))
 
         bSizer1.Add(self.separator, 0, wx.EXPAND | wx.ALL, 5)
@@ -98,7 +95,7 @@ class MainWindow(wx.Frame):
 
         bSizer4.Add(self.label_download_location, 0, wx.ALL, 5)
 
-        self.input_download_location = wx.TextCtrl(self, wx.ID_ANY, config.DOWNLOAD_FOLDER,
+        self.input_download_location = wx.TextCtrl(self, wx.ID_ANY, self.download_path,
                                                    wx.DefaultPosition, wx.DefaultSize, 0)
         self.input_download_location.Enable(False)
 
@@ -122,10 +119,13 @@ class MainWindow(wx.Frame):
         self.SetSizer(bSizer1)
         self.Layout()
         self.statusbar = self.CreateStatusBar(2, wx.STB_DEFAULT_STYLE | wx.STB_SIZEGRIP, wx.ID_ANY)
+        self.menubar = wx.MenuBar(0)
+        self.SetMenuBar(self.menubar)
 
         self.Centre(wx.BOTH)
 
         # Connect Events
+        self.Bind(wx.EVT_CLOSE, self.OnClose)
         self.input_prompt.Bind(wx.EVT_KILL_FOCUS, self.OnLoseFocus)
         self.input_prompt.Bind(wx.EVT_SET_FOCUS, self.OnFocus)
         self.input_prompt.Bind(wx.EVT_TEXT, self.ProcessTextEventFromInput)
@@ -149,6 +149,10 @@ class MainWindow(wx.Frame):
 
     def __del__(self):
         pass
+
+    def OnClose(self, event):
+        self.connector.stop_bot()
+        self.Destroy()
 
     def IsBotRunning(self):
         if self.connector.bot.status in (self.connector.bot.Status.READY, self.connector.bot.Status.PROCESSING):
@@ -214,13 +218,11 @@ class MainWindow(wx.Frame):
     def OnFocus(self, event):
         if self.input_prompt.GetValue() == "prompt...":
             self.input_prompt.Clear()
-            self.input_prompt.SetForegroundColour(wx.BLACK)
         event.Skip()
 
     def OnLoseFocus(self, event):
         if self.input_prompt.GetValue() == "":
             self.input_prompt.SetValue("prompt...")
-            self.input_prompt.SetForegroundColour(wx.BLACK)
         event.Skip()
 
     def BrowseForFile(self, event):
@@ -255,8 +257,14 @@ class MainWindow(wx.Frame):
         dialog = wx.DirDialog(None, "Choose downloads folder:", defaultPath=self.download_path,
                               style=wx.DD_DEFAULT_STYLE | wx.DD_NEW_DIR_BUTTON)
         if dialog.ShowModal() == wx.ID_OK:
-            self.input_download_location.SetValue(dialog.GetPath())
+            download_path = dialog.GetPath()
             # send this to settings manager to change actual folder
+            print(f"changing the download folder to {dialog.GetPath()}")
+            self.settings.write(Settings.download_folder, dialog.GetPath())
+            # change value in the ui from settings directly
+            # self.settings.read(Settings.download_folder)
+            self.download_path = self.settings.read(Settings.download_folder)
+            self.input_download_location.SetValue(self.download_path)
         dialog.Destroy()
 
 

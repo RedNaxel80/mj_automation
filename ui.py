@@ -1,42 +1,38 @@
-import wx
-import wx.xrc
-from PyQt6.QtCore import QStandardPaths
-from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QLineEdit, QFileDialog, QLabel
-import sys
-
-import ui_qt
-import ui_wx
+# import ui_qt
+# import ui_wx
+import ui_flask
 
 
 class UIType:
 	QT = 0
 	WX = 1
+	FLASK = 2
 
 
-UI_TYPE = UIType.WX
+UI_TYPE = UIType.FLASK
 
 
 class UI:
-	def __init__(self, connector):
+	def __init__(self, connector, port=5000):
+		self.port = port
 		self.connector = connector
 		self.ui = UI_TYPE
 		self.start(self.connector)
 
 	def start(self, connector):
-		if self.ui == UIType.QT:
-			self.start_qt(connector)
-		elif self.ui == UIType.WX:
-			self.start_wx(connector)
+		self.start_flask(connector, self.port)
+		# if self.ui == UIType.QT:
+		# 	self.start_qt(connector)
+		# elif self.ui == UIType.WX:
+		# 	self.start_wx(connector)
+		# elif self.ui == UIType.FLASK:
+		# 	self.start_flask(connector, self.port)
 
-	def start_qt(self, connector):
-		# self.ui_qt.start()  # # maybe there's a way to start this within the QT UI class
-		# app = QApplication([])
-		# demo = FileDialogDemo(connector)
-		# app.exec()
+	# def start_qt(self, connector):
+	# 	ui_qt.start(connector)
+	#
+	# def start_wx(self, connector):
+	# 	ui_wx.start(connector)
 
-		app = QApplication(sys.argv)
-		ex = ui_qt.SimpleApp(connector)
-		sys.exit(app.exec())
-
-	def start_wx(self, connector):
-		ui_wx.start(connector)
+	def start_flask(self, connector, port):
+		ui_flask.start(connector, port)
