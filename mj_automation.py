@@ -502,7 +502,7 @@ class MjAutomator:
             if self.flush_check_counter == self.hanged_job_timeout / 60:  # if we've reached the timeout
                 # if the values haven't changed, flush
                 if self.prev_num_que_jobs == self.queue.qsize() and self.prev_num_run_jobs == self.running_jobs:
-                    self.main.logger.log("default flush")
+                    await self.main.logger.log("default flush")
                     await self.flush()
                     self.flush_check_counter = 0
                     return
@@ -512,7 +512,7 @@ class MjAutomator:
         async def flush(self):
             # in the end this needs to be done manually from the UI with the alert to the user to check discord
             # for the captcha and only after catcha to proceed with the flush
-            self.main.logger.log(f"\nFlushing queue... Removed {self.running_jobs} jobs.")
+            await self.main.logger.log(f"\nFlushing queue... Removed {self.running_jobs} jobs.")
             self.main.status = self.main.Status.FLUSHING
             self.completed_jobs += self.running_jobs  # adding stuck jobs to done
             self.running_jobs = 0
