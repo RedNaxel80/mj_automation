@@ -35,8 +35,8 @@ def shutdown():
 def start(connector, port=5000):
     host = "127.0.0.1"
     app = Flask(__name__)
-    # log = logging.getLogger('werkzeug')
-    # log.setLevel(logging.ERROR)
+    log = logging.getLogger('werkzeug')
+    log.setLevel(logging.ERROR)
     scheduler = BackgroundScheduler(daemon=True)
     scheduler.add_job(exit_if_not_alive, "interval", seconds=1)
     scheduler.start()
