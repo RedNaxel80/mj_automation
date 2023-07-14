@@ -92,7 +92,7 @@ class MjAutomator:
                 f"download upscale_max: {self.settings.read(Settings.download_upscale_max)}")
             await self.logger.log("---------------")
 
-            await self.channel.send("Bot ready!")
+            # await self.channel.send("Bot ready!")  # nope.
             asyncio.create_task(self.job_manager.process_jobs())
             asyncio.create_task(self.prompter.prompt_process())
             self.ready.set()  # this sets the ready event that main loop is waiting for to continue for the threaded version
