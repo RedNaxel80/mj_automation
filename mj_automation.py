@@ -263,14 +263,14 @@ class MjAutomator:
             # Get the prompts from the default file on the start
             # await self.get_prompts_from_file(self.prompt_file)
 
-        async def get_prompts_from_file(self, file):
+        async def get_prompts_from_file(self, file, suffix=""):
             if not self.prompt_enabled:
                 return
 
             prompts = []
             try:
                 with open(file, 'r') as prompt_file:
-                    prompts = [line for line in prompt_file if line.strip()]
+                    prompts = [line + " " + suffix for line in prompt_file if line.strip()]
 
                 # skip if no prompts in file
                 if len(prompts) != 0 and file == self.prompt_file:

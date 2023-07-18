@@ -37,8 +37,8 @@ class Connector:
         self.send_command(self.bot.prompter.parse_multiple_prompts(prompt))  # multiline process
         return ""
 
-    def send_file_to_bot(self, file_path):
-        self.send_command(self.bot.prompter.get_prompts_from_file(file_path))
+    def send_file_to_bot(self, file_path, suffix=""):
+        self.send_command(self.bot.prompter.get_prompts_from_file(file_path, suffix))
         return ""
 
     def start_bot(self):

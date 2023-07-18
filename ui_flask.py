@@ -15,7 +15,7 @@ def check_port(host, port):
 
 
 def start_server(app, host, port):
-    app.run(host=host, port=port, debug=False, use_reloader=False, threaded=True)
+    app.run(host=host, port=port, debug=True, use_reloader=False, threaded=True)
     return
 
 
@@ -69,9 +69,10 @@ def start(connector, port=5000):
     def send_filepath():
         data = request.get_json()
         filepath = data["filepath"]
+        suffix = data["suffix"] or ""
         if filepath:
-            connector.send_file_to_bot(filepath)
-        return f"Filepath: {filepath}."
+            connector.send_file_to_bot(filepath, suffix)
+        return f"Filepath: {filepath}. Suffix: {suffix}."
 
     @app.route("/api/start-bot", methods=["POST", "GET"])
     def start_bot():
