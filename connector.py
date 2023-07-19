@@ -13,12 +13,14 @@ class Connector:
         self.bot = None
         self.thread = None
         self.ui = UI(self, self.port)
+        self.settings = None
 
     def init_ui(self):
         self.ui = UI(self, self.port)
 
     def init_bot(self):
         self.bot = MjAutomator(auto_run=False) or None
+        self.settings = self.bot.settings
         self.thread = threading.Thread(target=self.bot.start_bot, args=())
         self.thread.start()
 
@@ -58,19 +60,37 @@ class Connector:
         return {"status": self.bot.status, "counter": counter}
 
     def are_settings_completed(self):
-        # not assigning to self. as this is a one time run only, to avoid race
-        settings = Settings()
-        result = "yes" if settings.are_settings_completed() else "no"
+        # not assigning to self. as this is a one time run only, to avoid race (VOID)
+        # settings = Settings()
+        result = "yes" if self.settings.are_settings_completed() else "no"
         return result
 
     def set_download_dir(self, path):
-        settings = Settings()
-        settings.write(Settings.download_folder, path)
+        # settings = Settings()
+        self.settings.write(Settings.download_folder, path)
         return ""
 
     def get_download_dir(self):
-        settings = Settings()
-        return settings.read(Settings.download_folder)
+        # settings = Settings()
+        return self.settings.read(Settings.download_folder)
+
+    def get_settings(self):
+        # settings = Settings()
+        return self.settings.multi_read(Settings.discord_bot_token,
+                                        Settings.discord_main_token,
+                                        Settings.discord_server_id,
+                                        Settings.discord_channel_id,
+                                        Settings.discord_username)
+
+    def write_settings(self, values):
+        self.settings.multi_write(discord_bot_token=values[0],
+                                  discord_main_token=values[1],
+                                  discord_server_id=values[2],
+                                  discord_channel_id=values[3],
+                                  discord_username=values[4])
+        # create a list of items that will get written to settings.
+        # it can be hardcoded, as i control the flow of what goes in and in what order
+        return ""
 
     def check_bot(self):
         if self.bot.running:
