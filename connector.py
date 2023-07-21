@@ -74,32 +74,34 @@ class Connector:
         return self.settings.read(Settings.download_folder)
 
     def read_settings(self):
-        return self.settings.multi_read(
-            {
-                "discord_bot_token": Settings.discord_bot_token,
-                "discord_main_token": Settings.discord_main_token,
-                "discord_server_id": Settings.discord_server_id,
-                "discord_channel_id": Settings.discord_channel_id,
-                "discord_username": Settings.discord_username,
-                "jobmanager_concurrent_jobs_limit": Settings.jobmanager_concurrent_jobs_limit
-            }
-        )
+        discord_bot_token, discord_main_token, discord_server_id, \
+            discord_channel_id, discord_username, \
+            jobmanager_concurrent_jobs_limit = self.settings.multi_read(
+            Settings.discord_bot_token, Settings.discord_main_token, Settings.discord_server_id,
+            Settings.discord_channel_id, Settings.discord_username,
+            Settings.jobmanager_concurrent_jobs_limit)
 
-    def write_settings(self, values):
-        self.settings.multi_write(discord_bot_token=values[0],
-                                  discord_main_token=values[1],
-                                  discord_server_id=values[2],
-                                  discord_channel_id=values[3],
-                                  discord_username=values[4],
-                                  jobmanager_concurrent_jobs_limit=values[5])
-        # create a list of items that will get written to settings.
-        # it can be hardcoded, as i control the flow of what goes in and in what order
-        return ""
+        return {
+            Settings.discord_bot_token: discord_bot_token,
+            Settings.discord_main_token: discord_main_token,
+            Settings.discord_server_id: str(discord_server_id),
+            Settings.discord_channel_id: str(discord_channel_id),
+            Settings.discord_username: discord_username,
+            Settings.jobmanager_concurrent_jobs_limit: str(jobmanager_concurrent_jobs_limit)
+        }
+
+    def write_settings(self, data):
+        # it can be hardcoded, as i control the flow of what goes in
+        self.settings.multi_write(discord_bot_token=data[Settings.discord_bot_token],
+                                  discord_main_token=data[Settings.discord_main_token],
+                                  discord_server_id=int(data[Settings.discord_server_id]),
+                                  discord_channel_id=int(data[Settings.discord_channel_id]),
+                                  discord_username=data[Settings.discord_username],
+                                  jobmanager_concurrent_jobs_limit=int(data[Settings.jobmanager_concurrent_jobs_limit]))
+        return "settings saved"
 
     def check_bot(self):
         if self.bot.running:
             return "ok"
         else:
             return ""
-
-

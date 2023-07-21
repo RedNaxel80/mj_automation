@@ -107,13 +107,12 @@ def start(connector, port=5000):
     def check():
         return connector.check_bot()
     
-    @app.route("/api/save-settings", methods=methods)
-    def save_settings():
+    @app.route("/api/write-settings", methods=methods)
+    def write_settings():
         data = request.get_json()
-        values = data["values"]
-        return connector.write_settings(values)
+        return connector.write_settings(data)
 
-    @app.route("/api/read_settings", methods=methods)
+    @app.route("/api/read-settings", methods=methods)
     def read_settings():
         response = connector.read_settings()
         return jsonify({"result": response})
