@@ -152,7 +152,7 @@ class Settings:
         self.write(Settings.prompt_upscale_max_tag, "upscaled (beta)")  # as above but for upscale max
 
         # logging settings
-        self.write(Settings.logging_enabled, True)
+        self.write(Settings.logging_enabled, False)  # this is only for logs print to screen, file log will be written always
         self.write(Settings.logging_persistent, False)
         self.write(Settings.logging_file, os.path.join(self.appdirs.user_config_dir, "mja_logs.txt"))
 

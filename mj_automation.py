@@ -92,7 +92,7 @@ class MjAutomator:
                 f"download upscale_max: {self.settings.read(Settings.download_upscale_max)}")
             await self.logger.log("---------------")
 
-            await self.channel.send("Bot ready!")
+            # await self.channel.send("Bot ready!")  # nope.
             asyncio.create_task(self.job_manager.process_jobs())
             asyncio.create_task(self.prompter.prompt_process())
             self.ready.set()  # this sets the ready event that main loop is waiting for to continue for the threaded version
@@ -263,14 +263,14 @@ class MjAutomator:
             # Get the prompts from the default file on the start
             # await self.get_prompts_from_file(self.prompt_file)
 
-        async def get_prompts_from_file(self, file):
+        async def get_prompts_from_file(self, file, suffix=""):
             if not self.prompt_enabled:
                 return
 
             prompts = []
             try:
                 with open(file, 'r') as prompt_file:
-                    prompts = [line for line in prompt_file if line.strip()]
+                    prompts = [line + " " + suffix for line in prompt_file if line.strip()]
 
                 # skip if no prompts in file
                 if len(prompts) != 0 and file == self.prompt_file:
@@ -502,7 +502,7 @@ class MjAutomator:
             if self.flush_check_counter == self.hanged_job_timeout / 60:  # if we've reached the timeout
                 # if the values haven't changed, flush
                 if self.prev_num_que_jobs == self.queue.qsize() and self.prev_num_run_jobs == self.running_jobs:
-                    self.main.logger.log("default flush")
+                    await self.main.logger.log("default flush")
                     await self.flush()
                     self.flush_check_counter = 0
                     return
@@ -512,7 +512,7 @@ class MjAutomator:
         async def flush(self):
             # in the end this needs to be done manually from the UI with the alert to the user to check discord
             # for the captcha and only after catcha to proceed with the flush
-            self.main.logger.log(f"\nFlushing queue... Removed {self.running_jobs} jobs.")
+            await self.main.logger.log(f"\nFlushing queue... Removed {self.running_jobs} jobs.")
             self.main.status = self.main.Status.FLUSHING
             self.completed_jobs += self.running_jobs  # adding stuck jobs to done
             self.running_jobs = 0

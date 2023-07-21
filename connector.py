@@ -13,12 +13,14 @@ class Connector:
         self.bot = None
         self.thread = None
         self.ui = UI(self, self.port)
+        self.settings = None
 
     def init_ui(self):
         self.ui = UI(self, self.port)
 
     def init_bot(self):
         self.bot = MjAutomator(auto_run=False) or None
+        self.settings = self.bot.settings
         self.thread = threading.Thread(target=self.bot.start_bot, args=())
         self.thread.start()
 
@@ -37,8 +39,8 @@ class Connector:
         self.send_command(self.bot.prompter.parse_multiple_prompts(prompt))  # multiline process
         return ""
 
-    def send_file_to_bot(self, file_path):
-        self.send_command(self.bot.prompter.get_prompts_from_file(file_path))
+    def send_file_to_bot(self, file_path, suffix=""):
+        self.send_command(self.bot.prompter.get_prompts_from_file(file_path, suffix))
         return ""
 
     def start_bot(self):
@@ -58,24 +60,48 @@ class Connector:
         return {"status": self.bot.status, "counter": counter}
 
     def are_settings_completed(self):
-        # not assigning to self. as this is a one time run only, to avoid race
-        settings = Settings()
-        result = "yes" if settings.are_settings_completed() else "no"
+        # not assigning to self. as this is a one time run only, to avoid race (VOID)
+        # settings = Settings()
+        result = "yes" if self.settings.are_settings_completed() else "no"
         return result
 
     def set_download_dir(self, path):
-        settings = Settings()
-        settings.write(Settings.download_folder, path)
+        # settings = Settings()
+        self.settings.write(Settings.download_folder, path)
         return ""
 
     def get_download_dir(self):
-        settings = Settings()
-        return settings.read(Settings.download_folder)
+        return self.settings.read(Settings.download_folder)
+
+    def read_settings(self):
+        discord_bot_token, discord_main_token, discord_server_id, \
+            discord_channel_id, discord_username, \
+            jobmanager_concurrent_jobs_limit = self.settings.multi_read(
+            Settings.discord_bot_token, Settings.discord_main_token, Settings.discord_server_id,
+            Settings.discord_channel_id, Settings.discord_username,
+            Settings.jobmanager_concurrent_jobs_limit)
+
+        return {
+            Settings.discord_bot_token: discord_bot_token,
+            Settings.discord_main_token: discord_main_token,
+            Settings.discord_server_id: str(discord_server_id),
+            Settings.discord_channel_id: str(discord_channel_id),
+            Settings.discord_username: discord_username,
+            Settings.jobmanager_concurrent_jobs_limit: str(jobmanager_concurrent_jobs_limit)
+        }
+
+    def write_settings(self, data):
+        # it can be hardcoded, as i control the flow of what goes in
+        self.settings.multi_write(discord_bot_token=data[Settings.discord_bot_token],
+                                  discord_main_token=data[Settings.discord_main_token],
+                                  discord_server_id=int(data[Settings.discord_server_id]),
+                                  discord_channel_id=int(data[Settings.discord_channel_id]),
+                                  discord_username=data[Settings.discord_username],
+                                  jobmanager_concurrent_jobs_limit=int(data[Settings.jobmanager_concurrent_jobs_limit]))
+        return "settings saved"
 
     def check_bot(self):
         if self.bot.running:
             return "ok"
         else:
             return ""
-
-

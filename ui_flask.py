@@ -7,6 +7,7 @@ import signal
 import sys
 
 alive_counter = 0
+methods = ["POST", "GET"]
 
 
 def check_port(host, port):
@@ -15,7 +16,7 @@ def check_port(host, port):
 
 
 def start_server(app, host, port):
-    app.run(host=host, port=port, debug=False, use_reloader=False, threaded=True)
+    app.run(host=host, port=port, debug=True, use_reloader=False, threaded=True)
     return
 
 
@@ -35,8 +36,8 @@ def shutdown():
 def start(connector, port=5000):
     host = "127.0.0.1"
     app = Flask(__name__)
-    # log = logging.getLogger('werkzeug')
-    # log.setLevel(logging.ERROR)
+    log = logging.getLogger('werkzeug')
+    log.setLevel(logging.ERROR)
     scheduler = BackgroundScheduler(daemon=True)
     scheduler.add_job(exit_if_not_alive, "interval", seconds=1)
     scheduler.start()
@@ -57,7 +58,7 @@ def start(connector, port=5000):
 '''
         return content
 
-    @app.route("/api/send-prompt", methods=["POST", "GET"])
+    @app.route("/api/send-prompt", methods=methods)
     def send_prompt():
         data = request.get_json()
         prompt = data["prompt"]
@@ -65,45 +66,56 @@ def start(connector, port=5000):
             connector.send_prompt_to_bot(prompt)
         return f"Prompt: {prompt}."
 
-    @app.route("/api/send-filepath", methods=["POST", "GET"])
+    @app.route("/api/send-filepath", methods=methods)
     def send_filepath():
         data = request.get_json()
         filepath = data["filepath"]
+        suffix = data["suffix"] or ""
         if filepath:
-            connector.send_file_to_bot(filepath)
-        return f"Filepath: {filepath}."
+            connector.send_file_to_bot(filepath, suffix)
+        return f"Filepath: {filepath}. Suffix: {suffix}."
 
-    @app.route("/api/start-bot", methods=["POST", "GET"])
+    @app.route("/api/start-bot", methods=methods)
     def start_bot():
         return connector.start_bot()
 
-    @app.route("/api/stop-bot", methods=["POST", "GET"])
+    @app.route("/api/stop-bot", methods=methods)
     def stop_bot():
         return connector.stop_bot()
 
-    @app.route("/api/status", methods=["POST", "GET"])
+    @app.route("/api/status", methods=methods)
     def get_status():
         global alive_counter
         alive_counter = 0
         return connector.get_status()
 
-    @app.route("/api/config-done", methods=["POST", "GET"])
+    @app.route("/api/config-done", methods=methods)
     def are_settings_completed():
         return connector.are_settings_completed()
 
-    @app.route("/api/set-download-dir", methods=["POST", "GET"])
+    @app.route("/api/set-download-dir", methods=methods)
     def set_download_dir():
         data = request.get_json()
         path = data["path"]
         return connector.set_download_dir(path)
 
-    @app.route("/api/get-download-dir", methods=["POST", "GET"])
+    @app.route("/api/get-download-dir", methods=methods)
     def get_download_dir():
         return connector.get_download_dir()
 
-    @app.route("/api/check", methods=["POST", "GET"])
+    @app.route("/api/check", methods=methods)
     def check():
         return connector.check_bot()
+    
+    @app.route("/api/write-settings", methods=methods)
+    def write_settings():
+        data = request.get_json()
+        return connector.write_settings(data)
+
+    @app.route("/api/read-settings", methods=methods)
+    def read_settings():
+        response = connector.read_settings()
+        return jsonify({"result": response})
 
     # start the server (must be at the end)
     start_server(app, host, port)
