@@ -91,6 +91,8 @@ class Connector:
         }
 
     def write_settings(self, data):
+        self.settings.write("setup_completed", True)
+
         # it can be hardcoded, as i control the flow of what goes in
         self.settings.multi_write(discord_bot_token=data[Settings.discord_bot_token],
                                   discord_main_token=data[Settings.discord_main_token],
@@ -98,6 +100,7 @@ class Connector:
                                   discord_channel_id=int(data[Settings.discord_channel_id]),
                                   discord_username=data[Settings.discord_username],
                                   jobmanager_concurrent_jobs_limit=int(data[Settings.jobmanager_concurrent_jobs_limit]))
+
         return "settings saved"
 
     def check_bot(self):
