@@ -74,6 +74,9 @@ class Connector:
         return self.settings.read(Settings.download_folder)
 
     def read_settings(self):
+        if not self.settings:
+            self.settings = Settings()
+
         discord_bot_token, discord_main_token, discord_server_id, \
             discord_channel_id, discord_username, \
             jobmanager_concurrent_jobs_limit = self.settings.multi_read(
@@ -91,6 +94,9 @@ class Connector:
         }
 
     def write_settings(self, data):
+        if not self.settings:
+            self.settings = Settings()
+
         self.settings.write("setup_completed", True)
 
         # it can be hardcoded, as i control the flow of what goes in
