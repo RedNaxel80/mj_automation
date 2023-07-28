@@ -66,12 +66,13 @@ class Connector:
         return result
 
     def set_download_dir(self, path):
-        # settings = Settings()
-        self.settings.write(Settings.download_folder, path)
+        settings = Settings()
+        settings.write(Settings.download_folder, path)
         return ""
 
     def get_download_dir(self):
-        return self.settings.read(Settings.download_folder)
+        settings = Settings()
+        return settings.read(Settings.download_folder)
 
     def read_settings(self):
         settings = Settings()
