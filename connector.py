@@ -61,8 +61,8 @@ class Connector:
 
     def are_settings_completed(self):
         # not assigning to self. as this is a one time run only, to avoid race (VOID)
-        # settings = Settings()
-        result = "yes" if self.settings.are_settings_completed() else "no"
+        settings = Settings()
+        result = "yes" if settings.are_settings_completed() else "no"
         return result
 
     def set_download_dir(self, path):
@@ -74,15 +74,14 @@ class Connector:
         return self.settings.read(Settings.download_folder)
 
     def read_settings(self):
-        if not self.settings:
-            self.settings = Settings()
+        settings = Settings()
 
         discord_bot_token, discord_main_token, discord_server_id, \
             discord_channel_id, discord_username, \
-            jobmanager_concurrent_jobs_limit = self.settings.multi_read(
-            Settings.discord_bot_token, Settings.discord_main_token, Settings.discord_server_id,
-            Settings.discord_channel_id, Settings.discord_username,
-            Settings.jobmanager_concurrent_jobs_limit)
+            jobmanager_concurrent_jobs_limit = settings.multi_read(
+                Settings.discord_bot_token, Settings.discord_main_token, Settings.discord_server_id,
+                Settings.discord_channel_id, Settings.discord_username,
+                Settings.jobmanager_concurrent_jobs_limit)
 
         return {
             Settings.discord_bot_token: discord_bot_token,
@@ -94,18 +93,17 @@ class Connector:
         }
 
     def write_settings(self, data):
-        if not self.settings:
-            self.settings = Settings()
+        settings = Settings()
 
-        self.settings.write("setup_completed", True)
+        settings.write("setup_completed", True)
 
         # it can be hardcoded, as i control the flow of what goes in
-        self.settings.multi_write(discord_bot_token=data[Settings.discord_bot_token],
-                                  discord_main_token=data[Settings.discord_main_token],
-                                  discord_server_id=int(data[Settings.discord_server_id]),
-                                  discord_channel_id=int(data[Settings.discord_channel_id]),
-                                  discord_username=data[Settings.discord_username],
-                                  jobmanager_concurrent_jobs_limit=int(data[Settings.jobmanager_concurrent_jobs_limit]))
+        settings.multi_write(discord_bot_token=data[Settings.discord_bot_token],
+                             discord_main_token=data[Settings.discord_main_token],
+                             discord_server_id=int(data[Settings.discord_server_id]),
+                             discord_channel_id=int(data[Settings.discord_channel_id]),
+                             discord_username=data[Settings.discord_username],
+                             jobmanager_concurrent_jobs_limit=int(data[Settings.jobmanager_concurrent_jobs_limit]))
 
         return "settings saved"
 

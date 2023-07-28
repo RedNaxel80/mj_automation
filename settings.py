@@ -78,7 +78,9 @@ class Settings:
                      Settings.discord_bot_token,
                      Settings.discord_main_token]
 
-        if any(self.read(s) for s in check_for) is None:
+        if not self.read(Settings.setup_completed):
+            return False
+        elif any(self.read(s) for s in check_for) is None:
             return False
         else:
             return True
