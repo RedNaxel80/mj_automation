@@ -80,7 +80,7 @@ class Settings:
 
         if not self.read(Settings.setup_completed):
             return False
-        elif any(self.read(s) for s in check_for) is None:
+        elif any(self.read(s) for s in check_for) in ("", None):
             return False
         else:
             return True
@@ -104,7 +104,8 @@ class Settings:
     def multi_read(self, *keys):
         with open(self.filename, 'r') as f:
             data = json.load(f)
-        return tuple(data.get(key) for key in keys)
+        # return tuple(data.get(key) for key in keys)
+        return tuple(data.get(key) if data.get(key) is not None else "" for key in keys)
 
     def multi_write(self, **kwargs):
         with open(self.filename, 'r') as f:
@@ -116,7 +117,7 @@ class Settings:
 
     def insert_defaults(self):
         # app setup
-        self.write(Settings.version, 0.1)
+        self.write(Settings.version, 0.6)
         self.write(Settings.config_initialized, True)
         self.write(Settings.setup_completed, False)
 
