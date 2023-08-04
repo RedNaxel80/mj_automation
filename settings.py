@@ -78,7 +78,9 @@ class Settings:
                      Settings.discord_bot_token,
                      Settings.discord_main_token]
 
-        if any(self.read(s) for s in check_for) is None:
+        if not self.read(Settings.setup_completed):
+            return False
+        elif any(self.read(s) for s in check_for) in ("", None):
             return False
         else:
             return True
@@ -102,7 +104,8 @@ class Settings:
     def multi_read(self, *keys):
         with open(self.filename, 'r') as f:
             data = json.load(f)
-        return tuple(data.get(key) for key in keys)
+        # return tuple(data.get(key) for key in keys)
+        return tuple(data.get(key) if data.get(key) is not None else "" for key in keys)
 
     def multi_write(self, **kwargs):
         with open(self.filename, 'r') as f:
@@ -114,7 +117,7 @@ class Settings:
 
     def insert_defaults(self):
         # app setup
-        self.write(Settings.version, 0.1)
+        self.write(Settings.version, 0.6)
         self.write(Settings.config_initialized, True)
         self.write(Settings.setup_completed, False)
 
@@ -164,5 +167,5 @@ class Settings:
         self.write(Settings.discord_mj_command_blend, 1062880104792997970)
         self.write(Settings.jobmanager_timeout_between_jobs, 4)  # timout between jobs in seconds, but should be a full divider of 60 (e.g. 2 & 5 are ok, but 7 is not)
         self.write(Settings.jobmanager_hanged_job_timeout, 300)  # hanged job timeout in seconds, but has to represent full minutes, otherwise it will be rounded down
-        self.write(Settings.jobmanager_concurrent_jobs_limit, 5)  # concurrent jobs number has to stay way below maximum to avoid captcha checks, halts, and hangs
+        self.write(Settings.jobmanager_concurrent_jobs_limit, 3)  # concurrent jobs number has to stay way below maximum to avoid captcha checks, halts, and hangs
 

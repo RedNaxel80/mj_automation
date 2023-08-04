@@ -85,9 +85,13 @@ def start(connector, port=5000):
 
     @app.route("/api/status", methods=methods)
     def get_status():
+        keep_alive()
+        return connector.get_status()
+
+    @app.route("/api/keep-alive", methods=methods)
+    def keep_alive():
         global alive_counter
         alive_counter = 0
-        return connector.get_status()
 
     @app.route("/api/config-done", methods=methods)
     def are_settings_completed():
