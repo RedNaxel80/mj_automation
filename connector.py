@@ -85,11 +85,11 @@ class Connector:
                 Settings.jobmanager_concurrent_jobs_limit)
 
         return {
-            Settings.discord_bot_token: discord_bot_token,
-            Settings.discord_main_token: discord_main_token,
+            Settings.discord_bot_token: str(discord_bot_token),
+            Settings.discord_main_token: str(discord_main_token),
             Settings.discord_server_id: str(discord_server_id),
             Settings.discord_channel_id: str(discord_channel_id),
-            Settings.discord_username: discord_username,
+            Settings.discord_username: str(discord_username),
             Settings.jobmanager_concurrent_jobs_limit: str(jobmanager_concurrent_jobs_limit)
         }
 

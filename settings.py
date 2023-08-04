@@ -167,5 +167,5 @@ class Settings:
         self.write(Settings.discord_mj_command_blend, 1062880104792997970)
         self.write(Settings.jobmanager_timeout_between_jobs, 4)  # timout between jobs in seconds, but should be a full divider of 60 (e.g. 2 & 5 are ok, but 7 is not)
         self.write(Settings.jobmanager_hanged_job_timeout, 300)  # hanged job timeout in seconds, but has to represent full minutes, otherwise it will be rounded down
-        self.write(Settings.jobmanager_concurrent_jobs_limit, 5)  # concurrent jobs number has to stay way below maximum to avoid captcha checks, halts, and hangs
+        self.write(Settings.jobmanager_concurrent_jobs_limit, 3)  # concurrent jobs number has to stay way below maximum to avoid captcha checks, halts, and hangs
 
