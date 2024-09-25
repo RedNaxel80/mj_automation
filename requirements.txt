@@ -4,6 +4,6 @@ PyQt6~=6.5.1
 Flask~=2.3.2
 APScheduler~=3.10.1
 discord~=2.2.3
-Pillow~=10.0.1
+Pillow~=10.2.0
 appdirs~=1.4.4
 pyinstaller~=5.13.1
